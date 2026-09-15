@@ -17,7 +17,7 @@
  */
 const GEMINI_CONFIG = {
   apiKey: 'YOUR_GEMINI_API_KEY_HERE',
-  model: 'gemini-2.0-flash',
+  model: 'gemini-1.5-flash',
   maxTokens: 2048,
   apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models'
 };

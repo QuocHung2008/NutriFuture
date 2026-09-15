@@ -17,11 +17,21 @@ const NF_Gemini = (() => {
     return localStorage.getItem('nf_gemini_api_key') || '';
   }
 
+  const CANDIDATE_MODELS = [
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-latest',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-pro'
+  ];
+
   function getModel() {
+    const cached = localStorage.getItem('nf_working_model');
+    if (cached) return cached;
     if (typeof GEMINI_CONFIG !== 'undefined' && GEMINI_CONFIG.model) {
       return GEMINI_CONFIG.model;
     }
-    return 'gemini-2.0-flash';
+    return 'gemini-1.5-flash';
   }
 
   function isConfigured() {
@@ -35,7 +45,35 @@ const NF_Gemini = (() => {
     return `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
   }
 
-  /* ─── Gọi API chung ─── */
+  /* ─── Thực thi gọi API với 1 model cụ thể ─── */
+
+  async function _executeRequest(model, body) {
+    const url = _getApiUrl(model);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      console.warn(`[Gemini API] Request failed for model ${model}:`, response.status, errData);
+      const err = new Error(`API_ERROR_${response.status}`);
+      err.status = response.status;
+      err.details = errData;
+      throw err;
+    }
+
+    const result = await response.json();
+    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('EMPTY_RESPONSE');
+
+    // Lưu lại model đã kiểm chứng hoạt động thành công
+    localStorage.setItem('nf_working_model', model);
+    return text;
+  }
+
+  /* ─── Gọi API chung với cơ chế Auto-Fallback khi gặp lỗi 404 ─── */
 
   async function _call(prompt, base64Image = null) {
     if (!isConfigured()) {
@@ -49,7 +87,6 @@ const NF_Gemini = (() => {
 
     // Thêm ảnh nếu có (Vision)
     if (base64Image) {
-      // Loại bỏ prefix "data:image/...;base64,"
       const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
       parts.push({
         inline_data: {
@@ -67,40 +104,41 @@ const NF_Gemini = (() => {
       }
     };
 
-    const response = await fetch(_getApiUrl(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    // Thử với model ưu tiên trước
+    const primaryModel = getModel();
+    try {
+      return await _executeRequest(primaryModel, body);
+    } catch (err) {
+      // Nếu gặp 404 (model không tìm thấy trên API key này), tự động thử các model khả thi khác
+      if (err.status === 404) {
+        console.info(`[Gemini API] Model "${primaryModel}" trả về 404. Đang tự động thử các model dự phòng...`);
+        for (const candidate of CANDIDATE_MODELS) {
+          if (candidate === primaryModel) continue;
+          try {
+            console.info(`[Gemini API] Đang thử kết nối model: "${candidate}"`);
+            const text = await _executeRequest(candidate, body);
+            console.info(`[Gemini API] Kết nối thành công với model: "${candidate}"!`);
+            return text;
+          } catch (retryErr) {
+            if (retryErr.status === 404) continue;
+            throw retryErr;
+          }
+        }
+      }
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      const status = response.status;
-      
-      if (status === 400) throw new Error('INVALID_REQUEST');
-      if (status === 401 || status === 403) throw new Error('INVALID_API_KEY');
-      if (status === 429) throw new Error('RATE_LIMITED');
-      if (status === 500 || status === 503) throw new Error('SERVER_ERROR');
-      
-      throw new Error(`API_ERROR_${status}`);
+      if (err.status === 400) throw new Error('INVALID_REQUEST');
+      if (err.status === 401 || err.status === 403) throw new Error('INVALID_API_KEY');
+      if (err.status === 429) throw new Error('RATE_LIMITED');
+      if (err.status === 500 || err.status === 503) throw new Error('SERVER_ERROR');
+
+      throw err;
     }
-
-    const result = await response.json();
-    
-    // Trích xuất text từ response
-    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('EMPTY_RESPONSE');
-
-    return text;
   }
 
   /* ─── Parse JSON từ response (xử lý markdown code blocks) ─── */
 
   function _parseJSON(text) {
-    // Xử lý trường hợp Gemini trả về JSON trong code block
     let cleaned = text.trim();
-    
-    // Loại bỏ ```json ... ``` wrapper
     const codeBlockMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
     if (codeBlockMatch) {
       cleaned = codeBlockMatch[1].trim();
@@ -109,7 +147,6 @@ const NF_Gemini = (() => {
     try {
       return JSON.parse(cleaned);
     } catch (e) {
-      // Thử tìm JSON object trong text
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
@@ -128,14 +165,15 @@ const NF_Gemini = (() => {
     const msg = error.message || error;
     const map = {
       'API_NOT_CONFIGURED': 'Chưa cấu hình API key. Vui lòng xem hướng dẫn trong phần Hồ sơ.',
-      'INVALID_API_KEY': 'API key không hợp lệ. Kiểm tra lại cấu hình.',
-      'RATE_LIMITED': 'Đã vượt giới hạn API. Vui lòng thử lại sau vài phút.',
+      'INVALID_API_KEY': 'API key không hợp lệ hoặc đã bị khóa. Kiểm tra lại trên Google AI Studio.',
+      'RATE_LIMITED': 'Đã vượt giới hạn API miễn phí. Vui lòng thử lại sau vài giây.',
       'SERVER_ERROR': 'Lỗi máy chủ Google. Vui lòng thử lại sau.',
       'INVALID_REQUEST': 'Yêu cầu không hợp lệ. Vui lòng thử lại.',
+      'API_ERROR_404': 'Mô hình AI không tìm thấy hoặc tài khoản chưa kích hoạt phiên bản model này (404).',
       'EMPTY_RESPONSE': 'Không nhận được phản hồi từ AI. Thử lại.',
       'PARSE_ERROR': 'Không thể xử lý kết quả AI. Thử lại.',
-      'NETWORK_ERROR': 'Lỗi kết nối mạng. Kiểm tra internet.',
-      'NO_FOOD_DETECTED': 'Không nhận diện được thức ăn trong hình. Thử chụp rõ hơn.',
+      'NETWORK_ERROR': 'Lỗi kết nối mạng hoặc trình duyệt chặn CORS. Kiểm tra kết nối internet.',
+      'NO_FOOD_DETECTED': 'Không nhận diện được thức ăn trong hình. Thử chụp rõ hơn góc chụp chính diện.',
     };
     return map[msg] || `Đã xảy ra lỗi: ${msg}`;
   }

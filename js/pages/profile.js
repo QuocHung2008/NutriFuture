@@ -139,7 +139,7 @@ const NF_PageProfile = (() => {
           <div class="card card--glass" id="profile-ai-meal-plan-card">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-3);">
               <div>
-                <span class="tag tag--primary" style="margin-bottom:var(--sp-1);">AI Gemini 2.0</span>
+                <span class="tag tag--primary" style="margin-bottom:var(--sp-1);">AI Gemini Flash</span>
                 <h3 style="font-size:var(--fs-lg); font-weight:800;">Tư vấn Thực đơn 1 Ngày</h3>
                 <p class="text-xs text-muted">Gợi ý 4 bữa ăn thuần Việt phù hợp chỉ số TDEE cá nhân của bạn</p>
               </div>

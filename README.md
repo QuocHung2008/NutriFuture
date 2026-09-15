@@ -50,8 +50,7 @@ NutriFuture sử dụng API Google Gemini để phân tích hình ảnh và tra 
    const GEMINI_CONFIG = {
      apiKey: 'AIzaSy_THAY_THE_BANG_KEY_THAT_CUA_BAN',
      apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
-     model: 'gemini-2.0-flash',
-     visionModel: 'gemini-2.0-flash',
+     model: 'gemini-1.5-flash',
      maxTokens: 2048,
    };
    ```
