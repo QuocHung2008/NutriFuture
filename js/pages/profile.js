@@ -158,18 +158,35 @@ const NF_PageProfile = (() => {
               <i class="fa-solid fa-key" style="color:var(--slate-600); margin-right:var(--sp-1);"></i> Cài đặt Google Gemini API Key
             </h4>
             <p class="text-xs text-muted" style="margin-bottom:var(--sp-3); line-height:1.5;">
-              Khóa API dùng để kích hoạt tính năng Camera AI và Tra cứu dinh dưỡng. Được lưu trên trình duyệt của bạn.
+              Khóa API dùng để kích hoạt Camera AI và Tra cứu dinh dưỡng. Được lưu an toàn trên trình duyệt của bạn.
             </p>
-            <div style="display:flex; gap:var(--sp-2);">
+            <div style="display:flex; gap:var(--sp-2); margin-bottom:var(--sp-2);">
               <input type="password" id="input-profile-api-key" class="search-bar__input" 
-                     value="${currentApiKey}" placeholder="AIzaSy..." style="padding-left:var(--sp-3); flex:1;" />
+                     value="${currentApiKey}" placeholder="Nhập Gemini API Key từ Google AI Studio..." style="padding-left:var(--sp-3); flex:1;" />
               <button class="btn btn--outline" id="btn-save-profile-api-key" style="white-space:nowrap;">
-                Lưu Key
+                <i class="fa-solid fa-floppy-disk"></i> Lưu
               </button>
             </div>
-            <div style="margin-top:var(--sp-2); text-align:right;">
+
+            <!-- Connection test row -->
+            <div style="display:flex; gap:var(--sp-2); align-items:center; margin-bottom:var(--sp-2);">
+              <button class="btn btn--outline btn--sm" id="btn-test-connection" style="flex:1;">
+                <i class="fa-solid fa-plug-circle-check"></i> Kiểm tra kết nối & Tìm model khả dụng
+              </button>
+              <button class="btn btn--outline btn--sm" id="btn-reset-model-cache" title="Xóa cache model đã lưu để thử lại">
+                <i class="fa-solid fa-rotate"></i> Làm mới
+              </button>
+            </div>
+
+            <!-- Status output -->
+            <div id="api-test-result" style="display:none; padding:var(--sp-2) var(--sp-3); border-radius:var(--radius-lg); font-size:var(--fs-xs); line-height:1.6;"></div>
+
+            <div style="margin-top:var(--sp-2); display:flex; justify-content:space-between; align-items:center;">
+              <span class="text-xs text-muted" id="api-current-model" style="font-style:italic;">
+                Model đang dùng: <strong>${localStorage.getItem('nf_working_model') || 'gemini-2.5-flash (mặc định)'}</strong>
+              </span>
               <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-xs text-bold" style="color:var(--primary-600);">
-                Lấy API key tại Google AI Studio <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                Lấy API key miễn phí <i class="fa-solid fa-arrow-up-right-from-square"></i>
               </a>
             </div>
           </div>
@@ -312,10 +329,98 @@ const NF_PageProfile = (() => {
       if (typeof GEMINI_CONFIG !== 'undefined') {
         GEMINI_CONFIG.apiKey = val;
       }
-      NF_UI.showToast('Đã lưu API Key Gemini vào trình duyệt!', 'success');
+      // Xóa cache model cũ để kết nối lại với key mới
+      localStorage.removeItem('nf_working_model');
+      localStorage.removeItem('nf_working_version');
+      NF_UI.showToast('Đã lưu API Key! Đang tìm model khả dụng...', 'success');
+
+      // Tự động kiểm tra kết nối sau khi lưu key mới
+      setTimeout(() => {
+        const testBtn = container.querySelector('#btn-test-connection');
+        if (testBtn) testBtn.click();
+      }, 500);
     };
 
-    // Nút AI Lập Thực Đơn
+    // Nút Kiểm tra kết nối
+    const btnTestConn = container.querySelector('#btn-test-connection');
+    const apiTestResult = container.querySelector('#api-test-result');
+    const apiCurrentModel = container.querySelector('#api-current-model');
+
+    if (btnTestConn && apiTestResult) {
+      btnTestConn.onclick = async () => {
+        const keyVal = inputApiKey ? inputApiKey.value.trim() : '';
+
+        if (!keyVal || keyVal.length < 10) {
+          apiTestResult.style.display = 'block';
+          apiTestResult.style.background = '#fff3cd';
+          apiTestResult.style.border = '1px solid #ffc107';
+          apiTestResult.style.color = '#856404';
+          apiTestResult.innerHTML = '⚠️ Vui lòng nhập API Key trước khi kiểm tra kết nối.';
+          return;
+        }
+
+        NF_UI.showInlineLoading(btnTestConn);
+        apiTestResult.style.display = 'block';
+        apiTestResult.style.background = 'var(--slate-50)';
+        apiTestResult.style.border = '1px solid var(--slate-200)';
+        apiTestResult.style.color = 'var(--slate-700)';
+        apiTestResult.innerHTML = '<span class="loading-spinner loading-spinner--sm" style="display:inline-block; vertical-align:middle; margin-right:0.25rem;"></span> Đang gọi Google API để lấy danh sách model...';
+
+        try {
+          const result = await NF_Gemini.testConnection(keyVal);
+          NF_UI.hideInlineLoading(btnTestConn);
+
+          if (result.ok) {
+            apiTestResult.style.background = '#d1fae5';
+            apiTestResult.style.border = '1px solid #a7f3d0';
+            apiTestResult.style.color = '#065f46';
+            apiTestResult.innerHTML = `
+              ✅ <strong>Kết nối thành công!</strong><br>
+              Đã tìm thấy <strong>${result.models ? result.models.length : '?'}</strong> model khả dụng.<br>
+              Model tối ưu đã chọn: <strong style="font-family:monospace;">${localStorage.getItem('nf_working_model') || 'gemini-2.5-flash'}</strong><br>
+              <em style="font-size:0.6rem; color:#047857;">Danh sách đầy đủ: ${(result.models || []).slice(0, 6).join(', ')}...</em>
+            `;
+            if (apiCurrentModel) {
+              apiCurrentModel.innerHTML = `Model đang dùng: <strong>${localStorage.getItem('nf_working_model') || 'gemini-2.5-flash'}</strong>`;
+            }
+            NF_UI.showToast('Kết nối Gemini AI thành công!', 'success');
+          } else {
+            apiTestResult.style.background = '#fee2e2';
+            apiTestResult.style.border = '1px solid #fca5a5';
+            apiTestResult.style.color = '#991b1b';
+            apiTestResult.innerHTML = `
+              ❌ <strong>Kết nối thất bại:</strong> ${result.message}
+              <br><em style="font-size:0.6rem; margin-top:0.25rem; display:block;">Hãy kiểm tra lại API Key hoặc đảm bảo API "Generative Language API" đã được bật trong Google Cloud Console.</em>
+            `;
+          }
+        } catch (e) {
+          NF_UI.hideInlineLoading(btnTestConn);
+          apiTestResult.style.background = '#fee2e2';
+          apiTestResult.style.border = '1px solid #fca5a5';
+          apiTestResult.style.color = '#991b1b';
+          apiTestResult.innerHTML = `❌ <strong>Lỗi khi kiểm tra:</strong> ${e.message}`;
+        }
+      };
+    }
+
+    // Nút Làm mới (xóa cache model)
+    const btnResetCache = container.querySelector('#btn-reset-model-cache');
+    if (btnResetCache) {
+      btnResetCache.onclick = () => {
+        localStorage.removeItem('nf_working_model');
+        localStorage.removeItem('nf_working_version');
+        if (apiCurrentModel) {
+          apiCurrentModel.innerHTML = 'Model đang dùng: <strong>gemini-2.5-flash (mặc định)</strong>';
+        }
+        if (apiTestResult) {
+          apiTestResult.style.display = 'none';
+          apiTestResult.innerHTML = '';
+        }
+        NF_UI.showToast('Đã xóa cache model. Lần gọi tiếp theo sẽ tự động tìm model tốt nhất.', 'info');
+      };
+    }
+
+
     const btnGetMealPlan = container.querySelector('#btn-get-ai-meal-plan');
     const mealPlanOutput = container.querySelector('#ai-meal-plan-output');
 

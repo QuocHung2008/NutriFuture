@@ -18,24 +18,32 @@ const NF_Gemini = (() => {
     return (key || '').trim();
   }
 
+  // Danh sách model theo thứ tự ưu tiên — hỗ trợ các key thế hệ mới và cũ
   const CANDIDATE_MODELS = [
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-latest',
+    // Thế hệ 2.5+ (key mới từ 2025)
+    'gemini-2.5-flash',
+    'gemini-flash-latest',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-pro',
+    'gemini-pro-latest',
+    // Thế hệ cũ hơn (nếu key vẫn hỗ trợ)
     'gemini-2.0-flash',
     'gemini-2.0-flash-exp',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-latest',
     'gemini-1.5-pro',
-    'gemini-pro'
   ];
 
   const API_VERSIONS = ['v1beta', 'v1'];
 
   function getModel() {
+    // Xóa cache cũ nếu không còn hợp lệ với key hiện tại
     const cached = localStorage.getItem('nf_working_model');
     if (cached) return cached;
     if (typeof GEMINI_CONFIG !== 'undefined' && GEMINI_CONFIG.model) {
       return GEMINI_CONFIG.model;
     }
-    return 'gemini-1.5-flash';
+    return 'gemini-2.5-flash';
   }
 
   function getApiVersion() {
