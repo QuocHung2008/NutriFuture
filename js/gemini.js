@@ -1,20 +1,21 @@
 /**
  * NutriFuture — Gemini API Wrapper
  * Gọi Google Gemini API (Text + Vision) trực tiếp từ browser.
- * 
- * LƯU Ý: API key nằm client-side do ràng buộc static hosting.
- * Đã giảm thiểu rủi ro bằng HTTP referrer restriction + quota thấp.
+ * Hỗ trợ tự động fallback model, kiểm tra kết nối và chẩn đoán lỗi chi tiết.
  */
 const NF_Gemini = (() => {
   'use strict';
 
-  /* ─── Kiểm tra cấu hình ─── */
+  /* ─── Lấy API Key (được trim sạch khoảng trắng) ─── */
 
   function getApiKey() {
+    let key = '';
     if (typeof GEMINI_CONFIG !== 'undefined' && GEMINI_CONFIG.apiKey && GEMINI_CONFIG.apiKey !== 'YOUR_GEMINI_API_KEY_HERE') {
-      return GEMINI_CONFIG.apiKey;
+      key = GEMINI_CONFIG.apiKey;
+    } else {
+      key = localStorage.getItem('nf_gemini_api_key') || '';
     }
-    return localStorage.getItem('nf_gemini_api_key') || '';
+    return (key || '').trim();
   }
 
   const CANDIDATE_MODELS = [
@@ -22,8 +23,11 @@ const NF_Gemini = (() => {
     'gemini-1.5-flash-latest',
     'gemini-2.0-flash',
     'gemini-2.0-flash-exp',
-    'gemini-1.5-pro'
+    'gemini-1.5-pro',
+    'gemini-pro'
   ];
+
+  const API_VERSIONS = ['v1beta', 'v1'];
 
   function getModel() {
     const cached = localStorage.getItem('nf_working_model');
@@ -34,21 +38,26 @@ const NF_Gemini = (() => {
     return 'gemini-1.5-flash';
   }
 
+  function getApiVersion() {
+    return localStorage.getItem('nf_working_version') || 'v1beta';
+  }
+
   function isConfigured() {
     const key = getApiKey();
-    return !!(key && key.trim().length > 10 && key !== 'YOUR_GEMINI_API_KEY_HERE');
+    return !!(key && key.length > 10 && key !== 'YOUR_GEMINI_API_KEY_HERE');
   }
 
-  function _getApiUrl(model) {
+  function _getApiUrl(model, version) {
     const m = model || getModel();
-    const key = getApiKey();
-    return `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
+    const ver = version || getApiVersion();
+    const key = encodeURIComponent(getApiKey());
+    return `https://generativelanguage.googleapis.com/${ver}/models/${m}:generateContent?key=${key}`;
   }
 
-  /* ─── Thực thi gọi API với 1 model cụ thể ─── */
+  /* ─── Thực thi gọi API với 1 model & version cụ thể ─── */
 
-  async function _executeRequest(model, body) {
-    const url = _getApiUrl(model);
+  async function _executeRequest(model, body, version = 'v1beta') {
+    const url = _getApiUrl(model, version);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -57,10 +66,14 @@ const NF_Gemini = (() => {
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      console.warn(`[Gemini API] Request failed for model ${model}:`, response.status, errData);
-      const err = new Error(`API_ERROR_${response.status}`);
+      console.warn(`[Gemini API] Request failed (${version}/${model}):`, response.status, errData);
+      
+      const googleMsg = errData?.error?.message || `HTTP ${response.status}: ${response.statusText}`;
+      const err = new Error(googleMsg);
       err.status = response.status;
       err.details = errData;
+      err.model = model;
+      err.version = version;
       throw err;
     }
 
@@ -68,12 +81,13 @@ const NF_Gemini = (() => {
     const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('EMPTY_RESPONSE');
 
-    // Lưu lại model đã kiểm chứng hoạt động thành công
+    // Lưu lại model & version hoạt động tốt
     localStorage.setItem('nf_working_model', model);
+    localStorage.setItem('nf_working_version', version);
     return text;
   }
 
-  /* ─── Gọi API chung với cơ chế Auto-Fallback khi gặp lỗi 404 ─── */
+  /* ─── Gọi API chung với cơ chế Auto-Fallback thông minh ─── */
 
   async function _call(prompt, base64Image = null) {
     if (!isConfigured()) {
@@ -81,11 +95,8 @@ const NF_Gemini = (() => {
     }
 
     const parts = [];
-
-    // Thêm text prompt
     parts.push({ text: prompt });
 
-    // Thêm ảnh nếu có (Vision)
     if (base64Image) {
       const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
       parts.push({
@@ -100,39 +111,88 @@ const NF_Gemini = (() => {
       contents: [{ parts }],
       generationConfig: {
         maxOutputTokens: (typeof GEMINI_CONFIG !== 'undefined' && GEMINI_CONFIG.maxTokens) ? GEMINI_CONFIG.maxTokens : 2048,
-        temperature: 0.3, // Thấp để kết quả nhất quán hơn cho dữ liệu dinh dưỡng
+        temperature: 0.3,
       }
     };
 
-    // Thử với model ưu tiên trước
     const primaryModel = getModel();
+    const primaryVer = getApiVersion();
+
     try {
-      return await _executeRequest(primaryModel, body);
+      return await _executeRequest(primaryModel, body, primaryVer);
     } catch (err) {
-      // Nếu gặp 404 (model không tìm thấy trên API key này), tự động thử các model khả thi khác
+      // Nếu gặp lỗi 404 (model không tìm thấy), thử tự động tìm model khả dụng
       if (err.status === 404) {
-        console.info(`[Gemini API] Model "${primaryModel}" trả về 404. Đang tự động thử các model dự phòng...`);
-        for (const candidate of CANDIDATE_MODELS) {
-          if (candidate === primaryModel) continue;
-          try {
-            console.info(`[Gemini API] Đang thử kết nối model: "${candidate}"`);
-            const text = await _executeRequest(candidate, body);
-            console.info(`[Gemini API] Kết nối thành công với model: "${candidate}"!`);
-            return text;
-          } catch (retryErr) {
-            if (retryErr.status === 404) continue;
-            throw retryErr;
+        console.info(`[Gemini API] Model "${primaryModel}" (${primaryVer}) trả về 404. Đang thử các tổ hợp model/version dự phòng...`);
+        
+        for (const ver of API_VERSIONS) {
+          for (const candidate of CANDIDATE_MODELS) {
+            if (candidate === primaryModel && ver === primaryVer) continue;
+            try {
+              console.info(`[Gemini API] Thử kết nối: ${ver}/${candidate}`);
+              const text = await _executeRequest(candidate, body, ver);
+              console.info(`[Gemini API] Kết nối thành công với: ${ver}/${candidate}!`);
+              return text;
+            } catch (retryErr) {
+              if (retryErr.status === 404) continue;
+              throw retryErr;
+            }
           }
         }
       }
 
-      if (err.status === 400) throw new Error('INVALID_REQUEST');
-      if (err.status === 401 || err.status === 403) throw new Error('INVALID_API_KEY');
-      if (err.status === 429) throw new Error('RATE_LIMITED');
-      if (err.status === 500 || err.status === 503) throw new Error('SERVER_ERROR');
-
       throw err;
     }
+  }
+
+  /* ─── Chẩn đoán & Kiểm tra kết nối API Key ─── */
+
+  async function testConnection(keyOverride) {
+    const key = (keyOverride || getApiKey()).trim();
+    if (!key) {
+      return { ok: false, message: 'Chưa nhập API Key.' };
+    }
+
+    let lastError = null;
+
+    for (const ver of API_VERSIONS) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/${ver}/models?key=${encodeURIComponent(key)}`;
+        const res = await fetch(url);
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          const models = (data.models || [])
+            .filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => m.name.replace(/^models\//, ''));
+          
+          // Tự động tìm model tốt nhất để lưu
+          for (const p of CANDIDATE_MODELS) {
+            if (models.includes(p)) {
+              localStorage.setItem('nf_working_model', p);
+              localStorage.setItem('nf_working_version', ver);
+              break;
+            }
+          }
+
+          return {
+            ok: true,
+            version: ver,
+            models: models,
+            message: `Kết nối thành công (${ver})! Đã tìm thấy ${models.length} model khả dụng: ${models.slice(0, 4).join(', ')}...`
+          };
+        } else {
+          lastError = data?.error?.message || `HTTP ${res.status}: ${res.statusText}`;
+        }
+      } catch (e) {
+        lastError = e.message;
+      }
+    }
+
+    return {
+      ok: false,
+      message: lastError || 'Không thể kết nối đến máy chủ Google.'
+    };
   }
 
   /* ─── Parse JSON từ response (xử lý markdown code blocks) ─── */
@@ -159,23 +219,42 @@ const NF_Gemini = (() => {
     }
   }
 
-  /* ─── Thông báo lỗi tiếng Việt ─── */
+  /* ─── Thông báo lỗi tiếng Việt chi tiết ─── */
 
   function getErrorMessage(error) {
-    const msg = error.message || error;
-    const map = {
-      'API_NOT_CONFIGURED': 'Chưa cấu hình API key. Vui lòng xem hướng dẫn trong phần Hồ sơ.',
-      'INVALID_API_KEY': 'API key không hợp lệ hoặc đã bị khóa. Kiểm tra lại trên Google AI Studio.',
-      'RATE_LIMITED': 'Đã vượt giới hạn API miễn phí. Vui lòng thử lại sau vài giây.',
-      'SERVER_ERROR': 'Lỗi máy chủ Google. Vui lòng thử lại sau.',
-      'INVALID_REQUEST': 'Yêu cầu không hợp lệ. Vui lòng thử lại.',
-      'API_ERROR_404': 'Mô hình AI không tìm thấy hoặc tài khoản chưa kích hoạt phiên bản model này (404).',
-      'EMPTY_RESPONSE': 'Không nhận được phản hồi từ AI. Thử lại.',
-      'PARSE_ERROR': 'Không thể xử lý kết quả AI. Thử lại.',
-      'NETWORK_ERROR': 'Lỗi kết nối mạng hoặc trình duyệt chặn CORS. Kiểm tra kết nối internet.',
-      'NO_FOOD_DETECTED': 'Không nhận diện được thức ăn trong hình. Thử chụp rõ hơn góc chụp chính diện.',
-    };
-    return map[msg] || `Đã xảy ra lỗi: ${msg}`;
+    const msg = error?.message || String(error);
+    const detail = error?.details?.error?.message;
+    const fullDetail = detail ? `"${detail}"` : (msg ? `"${msg}"` : '');
+
+    if (msg === 'API_NOT_CONFIGURED') {
+      return 'Chưa cấu hình API key. Vui lòng vào mục Hồ sơ để nhập API key.';
+    }
+
+    if (error?.status === 401 || error?.status === 403 || msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('permission')) {
+      return `Lỗi xác thực API Key (${error?.status || 403}): ${fullDetail}. Hãy kiểm tra lại API key hoặc bỏ giới hạn HTTP Referrer trong Google Cloud Console khi chạy thử nghiệm trên localhost.`;
+    }
+
+    if (error?.status === 404 || msg.includes('404')) {
+      return `Lỗi 404 từ Google: ${fullDetail}. Nguyên nhân thường gặp:\n1. API key chưa được bật API "Generative Language API" trên Google Cloud Console.\n2. Key bị dán sai ký tự.\n3. Bạn có thể bấm "Kiểm tra kết nối" trong Hồ sơ để xem chi tiết.`;
+    }
+
+    if (error?.status === 429 || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('rate')) {
+      return `Đã vượt giới hạn lượt gọi miễn phí của Google (429): ${fullDetail}. Vui lòng thử lại sau vài giây.`;
+    }
+
+    if (msg === 'NO_FOOD_DETECTED') {
+      return 'Không nhận diện được món ăn trong ảnh. Hãy chụp rõ hơn hoặc tải ảnh đĩa thức ăn góc chính diện.';
+    }
+
+    if (msg === 'PARSE_ERROR') {
+      return 'AI phản hồi dữ liệu không đúng cấu trúc. Vui lòng bấm thử lại.';
+    }
+
+    if (msg === 'NETWORK_ERROR' || msg.toLowerCase().includes('failed to fetch')) {
+      return 'Lỗi kết nối mạng hoặc trình duyệt chặn CORS. Hãy kiểm tra kết nối internet.';
+    }
+
+    return `Lỗi từ Gemini AI: ${fullDetail || msg}`;
   }
 
   /* ─── API: Nhận diện ảnh món ăn (Gemini Vision) ─── */
@@ -203,35 +282,27 @@ Nếu KHÔNG nhận diện được thức ăn trong hình, trả về:
 
 Lưu ý: Giá trị dinh dưỡng phải là số (không có đơn vị). Ước tính dựa trên khẩu phần trung bình tại Việt Nam.`;
 
-    try {
-      const text = await _call(prompt, base64Image);
-      const data = _parseJSON(text);
-      
-      if (data.error === 'NO_FOOD_DETECTED') {
-        throw new Error('NO_FOOD_DETECTED');
-      }
-
-      // Validate và chuẩn hóa dữ liệu
-      return {
-        name: data.name || 'Món ăn không xác định',
-        serving: data.serving || 'Ước tính',
-        calories: Math.round(Number(data.calories)) || 0,
-        protein: Math.round(Number(data.protein) * 10) / 10 || 0,
-        fat: Math.round(Number(data.fat) * 10) / 10 || 0,
-        carb: Math.round(Number(data.carb) * 10) / 10 || 0,
-        fiber: Math.round(Number(data.fiber) * 10) / 10 || 0,
-        vitamins: Array.isArray(data.vitamins) ? data.vitamins : [],
-        minerals: Array.isArray(data.minerals) ? data.minerals : [],
-        foodGroup: data.foodGroup || '',
-        advice: data.advice || '',
-        source: 'camera'
-      };
-    } catch (error) {
-      if (error.message === 'NO_FOOD_DETECTED' || error.message.startsWith('API_') || error.message === 'PARSE_ERROR') {
-        throw error;
-      }
-      throw new Error('NETWORK_ERROR');
+    const text = await _call(prompt, base64Image);
+    const data = _parseJSON(text);
+    
+    if (data.error === 'NO_FOOD_DETECTED') {
+      throw new Error('NO_FOOD_DETECTED');
     }
+
+    return {
+      name: data.name || 'Món ăn không xác định',
+      serving: data.serving || 'Ước tính',
+      calories: Math.round(Number(data.calories)) || 0,
+      protein: Math.round(Number(data.protein) * 10) / 10 || 0,
+      fat: Math.round(Number(data.fat) * 10) / 10 || 0,
+      carb: Math.round(Number(data.carb) * 10) / 10 || 0,
+      fiber: Math.round(Number(data.fiber) * 10) / 10 || 0,
+      vitamins: Array.isArray(data.vitamins) ? data.vitamins : [],
+      minerals: Array.isArray(data.minerals) ? data.minerals : [],
+      foodGroup: data.foodGroup || '',
+      advice: data.advice || '',
+      source: 'camera'
+    };
   }
 
   /* ─── API: Tra cứu món ăn bằng text ─── */
@@ -256,28 +327,23 @@ CHỈ trả về JSON thuần (không có text ngoài JSON), theo đúng format:
 
 Lưu ý: Giá trị phải là số. Ước tính dựa trên khẩu phần trung bình tại Việt Nam.`;
 
-    try {
-      const text = await _call(prompt);
-      const data = _parseJSON(text);
+    const text = await _call(prompt);
+    const data = _parseJSON(text);
 
-      return {
-        name: data.name || query,
-        serving: data.serving || 'Ước tính',
-        calories: Math.round(Number(data.calories)) || 0,
-        protein: Math.round(Number(data.protein) * 10) / 10 || 0,
-        fat: Math.round(Number(data.fat) * 10) / 10 || 0,
-        carb: Math.round(Number(data.carb) * 10) / 10 || 0,
-        fiber: Math.round(Number(data.fiber) * 10) / 10 || 0,
-        vitamins: Array.isArray(data.vitamins) ? data.vitamins : [],
-        minerals: Array.isArray(data.minerals) ? data.minerals : [],
-        foodGroup: data.foodGroup || '',
-        advice: data.advice || '',
-        source: 'lookup'
-      };
-    } catch (error) {
-      if (error.message.startsWith('API_') || error.message === 'PARSE_ERROR') throw error;
-      throw new Error('NETWORK_ERROR');
-    }
+    return {
+      name: data.name || query,
+      serving: data.serving || 'Ước tính',
+      calories: Math.round(Number(data.calories)) || 0,
+      protein: Math.round(Number(data.protein) * 10) / 10 || 0,
+      fat: Math.round(Number(data.fat) * 10) / 10 || 0,
+      carb: Math.round(Number(data.carb) * 10) / 10 || 0,
+      fiber: Math.round(Number(data.fiber) * 10) / 10 || 0,
+      vitamins: Array.isArray(data.vitamins) ? data.vitamins : [],
+      minerals: Array.isArray(data.minerals) ? data.minerals : [],
+      foodGroup: data.foodGroup || '',
+      advice: data.advice || '',
+      source: 'lookup'
+    };
   }
 
   /* ─── API: Gợi ý thực đơn AI ─── */
@@ -314,28 +380,23 @@ CHỈ trả về JSON thuần:
   "advice": "1-2 câu lời khuyên dinh dưỡng chung"
 }`;
 
-    try {
-      const text = await _call(prompt);
-      const data = _parseJSON(text);
+    const text = await _call(prompt);
+    const data = _parseJSON(text);
 
-      return {
-        planName: data.planName || 'Thực đơn AI',
-        meals: (data.meals || []).map(m => ({
-          type: m.type || 'Bữa ăn',
-          name: m.name || '',
-          calories: Math.round(Number(m.calories)) || 0,
-          protein: Math.round(Number(m.protein) * 10) / 10 || 0,
-          fat: Math.round(Number(m.fat) * 10) / 10 || 0,
-          carb: Math.round(Number(m.carb) * 10) / 10 || 0,
-          description: m.description || '',
-        })),
-        totalCalories: Math.round(Number(data.totalCalories)) || 0,
-        advice: data.advice || '',
-      };
-    } catch (error) {
-      if (error.message.startsWith('API_') || error.message === 'PARSE_ERROR') throw error;
-      throw new Error('NETWORK_ERROR');
-    }
+    return {
+      planName: data.planName || 'Thực đơn AI',
+      meals: (data.meals || []).map(m => ({
+        type: m.type || 'Bữa ăn',
+        name: m.name || '',
+        calories: Math.round(Number(m.calories)) || 0,
+        protein: Math.round(Number(m.protein) * 10) / 10 || 0,
+        fat: Math.round(Number(m.fat) * 10) / 10 || 0,
+        carb: Math.round(Number(m.carb) * 10) / 10 || 0,
+        description: m.description || '',
+      })),
+      totalCalories: Math.round(Number(data.totalCalories)) || 0,
+      advice: data.advice || '',
+    };
   }
 
   return {
@@ -344,5 +405,6 @@ CHỈ trả về JSON thuần:
     searchFood,
     suggestMealPlan,
     getErrorMessage,
+    testConnection,
   };
 })();
