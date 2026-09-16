@@ -18,15 +18,18 @@ const NF_Gemini = (() => {
     return (key || '').trim();
   }
 
-  // Danh sách model theo thứ tự ưu tiên — hỗ trợ các key thế hệ mới và cũ
+  // Danh sách model theo thứ tự ưu tiên — cân bằng giữa độ chính xác cao và tốc độ
   const CANDIDATE_MODELS = [
-    // Thế hệ 2.5+ (key mới từ 2025)
+    // Ưu tiên dòng Flash chuẩn để đảm bảo độ chính xác tốt hơn
     'gemini-2.5-flash',
     'gemini-flash-latest',
+    // Dòng Lite dự phòng khi bản chuẩn bị quá tải (503)
     'gemini-2.5-flash-lite',
+    'gemini-flash-lite-latest',
+    // Dòng Pro (chính xác nhất nhưng dễ lỗi/chậm nhất)
     'gemini-2.5-pro',
     'gemini-pro-latest',
-    // Thế hệ cũ hơn (nếu key vẫn hỗ trợ)
+    // Thế hệ cũ (nếu key vẫn hỗ trợ)
     'gemini-2.0-flash',
     'gemini-2.0-flash-exp',
     'gemini-1.5-flash',
@@ -119,7 +122,7 @@ const NF_Gemini = (() => {
       contents: [{ parts }],
       generationConfig: {
         maxOutputTokens: (typeof GEMINI_CONFIG !== 'undefined' && GEMINI_CONFIG.maxTokens) ? GEMINI_CONFIG.maxTokens : 2048,
-        temperature: 0.3,
+        temperature: 0.15,
       }
     };
 
@@ -129,20 +132,25 @@ const NF_Gemini = (() => {
     try {
       return await _executeRequest(primaryModel, body, primaryVer);
     } catch (err) {
-      // Nếu gặp lỗi 404 (model không tìm thấy), thử tự động tìm model khả dụng
-      if (err.status === 404) {
-        console.info(`[Gemini API] Model "${primaryModel}" (${primaryVer}) trả về 404. Đang thử các tổ hợp model/version dự phòng...`);
+      // Nếu gặp lỗi 404 (không tìm thấy model), 503 (quá tải), hoặc 429 (giới hạn request), thử tự động fallback
+      if (err.status === 404 || err.status === 503 || err.status === 429) {
+        console.warn(`[Gemini API] Lỗi ${err.status} từ model "${primaryModel}" (${primaryVer}). Đang thử model dự phòng...`);
         
         for (const ver of API_VERSIONS) {
           for (const candidate of CANDIDATE_MODELS) {
             if (candidate === primaryModel && ver === primaryVer) continue;
             try {
-              console.info(`[Gemini API] Thử kết nối: ${ver}/${candidate}`);
+              console.info(`[Gemini API] Thử kết nối dự phòng: ${ver}/${candidate}`);
               const text = await _executeRequest(candidate, body, ver);
-              console.info(`[Gemini API] Kết nối thành công với: ${ver}/${candidate}!`);
+              console.info(`[Gemini API] Kết nối dự phòng thành công với: ${ver}/${candidate}!`);
+              // Lưu lại model/version này để dùng cho các lần sau nếu lỗi là do cấu hình (404) hoặc muốn chuyển hẳn sang model nhẹ
+              if (err.status === 404 || err.status === 503) {
+                localStorage.setItem('nf_working_model', candidate);
+                localStorage.setItem('nf_working_version', ver);
+              }
               return text;
             } catch (retryErr) {
-              if (retryErr.status === 404) continue;
+              if (retryErr.status === 404 || retryErr.status === 503 || retryErr.status === 429) continue;
               throw retryErr;
             }
           }

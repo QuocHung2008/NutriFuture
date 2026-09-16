@@ -69,9 +69,11 @@ const NF_PageProfile = (() => {
           <p class="text-sm text-muted">Nhập thông tin thể chất của bạn — máy sẽ tự động tính toán chỉ số chuẩn y khoa</p>
         </div>
 
-        <div class="page__body">
-          <!-- Profile Form Card -->
-          <div class="card card--glass">
+        <div class="page__body grid-2-desktop">
+          <!-- Cột trái: Form nhập -->
+          <div>
+            <!-- Profile Form Card -->
+            <div class="card card--glass">
             <h3 style="font-size:var(--fs-lg); font-weight:800; margin-bottom:var(--sp-3);">
               <i class="fa-solid fa-id-card" style="color:var(--primary-600); margin-right:var(--sp-1);"></i> Thông tin cá nhân
             </h3>
@@ -129,11 +131,13 @@ const NF_PageProfile = (() => {
               </div>
             </form>
           </div>
-
-          <!-- Real-time Computed Physical Metrics Card -->
-          <div class="card" id="profile-metrics-display">
-            <!-- Populated dynamically -->
-          </div>
+        </div> <!-- Close left column -->
+          <!-- Cột phải: Chỉ số & Các khối chức năng khác -->
+          <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
+            <!-- Real-time Computed Physical Metrics Card -->
+            <div class="card" id="profile-metrics-display">
+              <!-- Populated dynamically -->
+            </div>
 
           <!-- AI Meal Plan Recommendation Section -->
           <div class="card card--glass" id="profile-ai-meal-plan-card">
@@ -189,6 +193,7 @@ const NF_PageProfile = (() => {
                 Lấy API key miễn phí <i class="fa-solid fa-arrow-up-right-from-square"></i>
               </a>
             </div>
+          </div>
           </div>
         </div>
       </div>

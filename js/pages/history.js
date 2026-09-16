@@ -50,8 +50,11 @@ const NF_PageHistory = (() => {
         </div>
 
         <div class="page__body">
-          <!-- 7-Day Trend Chart Card -->
-          <div class="card card--glass">
+          <div class="grid-2-desktop">
+            <!-- Cột trái: Biểu đồ & Thống kê chung -->
+            <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
+              <!-- 7-Day Trend Chart Card -->
+              <div class="card card--glass">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-2);">
               <div>
                 <div class="card__label">XU HƯỚNG NĂNG LƯỢNG 7 NGÀY GẦN NHẤT</div>
@@ -100,8 +103,12 @@ const NF_PageHistory = (() => {
             </div>
           </div>
 
-          <!-- All Recorded Dates List -->
-          <div class="card">
+            </div> <!-- Close left column -->
+
+            <!-- Cột phải: Danh sách ngày & Backup -->
+            <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
+              <!-- All Recorded Dates List -->
+              <div class="card">
             <div class="section-label" style="margin-bottom:var(--sp-3);">CÁC NGÀY ĐÃ GHI NHẬN (${allDates.length})</div>
             <div style="display:flex; flex-direction:column; gap:var(--sp-2);">
               ${allDates.length > 0 ? allDates.slice(0, 15).map(dateStr => {
@@ -155,7 +162,9 @@ const NF_PageHistory = (() => {
                 <i class="fa-solid fa-triangle-exclamation"></i> Xóa toàn bộ dữ liệu ứng dụng
               </button>
             </div>
-          </div>
+              </div>
+            </div> <!-- Close right column -->
+          </div> <!-- Close grid-2-desktop -->
         </div>
       </div>
     `;

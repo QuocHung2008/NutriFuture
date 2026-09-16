@@ -1,0 +1,652 @@
+/**
+ * NutriFuture — THEME BOOST v2
+ * Lớp thiết kế nâng cấp: nhiều hiệu ứng chuyển động, hình khối trang trí,
+ * tương tác sống động, bố cục desktop thực sự. Không có chế độ sáng/tối
+ * (chỉ một bảng màu sáng, năng động duy nhất).
+ * File này được nạp SAU style.css nên các luật cùng độ ưu tiên sẽ ghi đè.
+ */
+
+/* ═══════════════════════════════════════════════
+   0. TOKENS MỞ RỘNG
+   ═══════════════════════════════════════════════ */
+
+:root {
+  --grad-primary: linear-gradient(135deg, #059669 0%, #10b981 45%, #34d399 100%);
+  --grad-primary-diag: linear-gradient(120deg, #047857, #10b981 55%, #38bdf8 130%);
+  --grad-accent: linear-gradient(135deg, #f59e0b 0%, #fb923c 100%);
+  --grad-blue: linear-gradient(135deg, #2563eb 0%, #38bdf8 100%);
+  --grad-purple: linear-gradient(135deg, #7c3aed 0%, #d946ef 100%);
+  --grad-mesh:
+    radial-gradient(circle at 8% 12%, rgba(16, 185, 129, 0.16) 0%, transparent 40%),
+    radial-gradient(circle at 92% 8%, rgba(56, 189, 248, 0.16) 0%, transparent 38%),
+    radial-gradient(circle at 85% 82%, rgba(251, 146, 60, 0.14) 0%, transparent 42%),
+    radial-gradient(circle at 12% 88%, rgba(217, 70, 239, 0.10) 0%, transparent 40%),
+    #f6faf8;
+
+  --glow-primary: 0 8px 30px -6px rgba(5, 150, 105, 0.45);
+  --glow-accent: 0 8px 26px -6px rgba(245, 158, 11, 0.45);
+  --glow-blue: 0 8px 26px -6px rgba(37, 99, 235, 0.4);
+  --shadow-pop: 0 20px 40px -18px rgba(15, 23, 42, 0.28), 0 6px 14px -8px rgba(15, 23, 42, 0.12);
+  --shadow-pop-lg: 0 30px 60px -22px rgba(15, 23, 42, 0.32), 0 10px 20px -10px rgba(15, 23, 42, 0.14);
+
+  --ease-pop: cubic-bezier(0.22, 1.4, 0.36, 1);
+  --content-max: 1180px;
+}
+
+/* ═══════════════════════════════════════════════
+   1. NỀN TOÀN CỤC — MESH GRADIENT + BLOB TRÔI NỔI
+   ═══════════════════════════════════════════════ */
+
+html, body { background: var(--grad-mesh); }
+
+body {
+  position: relative;
+  isolation: isolate;
+}
+
+.bg-decor {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg-decor__blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.bg-decor__blob--1 {
+  width: 26rem; height: 26rem;
+  top: -8rem; left: -6rem;
+  background: radial-gradient(circle at 30% 30%, rgba(52, 211, 153, 0.55), transparent 70%);
+  animation: blobFloat1 22s ease-in-out infinite;
+}
+
+.bg-decor__blob--2 {
+  width: 22rem; height: 22rem;
+  top: 8rem; right: -8rem;
+  background: radial-gradient(circle at 60% 40%, rgba(56, 189, 248, 0.5), transparent 70%);
+  animation: blobFloat2 26s ease-in-out infinite;
+}
+
+.bg-decor__blob--3 {
+  width: 20rem; height: 20rem;
+  bottom: -6rem; left: 10%;
+  background: radial-gradient(circle at 50% 50%, rgba(251, 146, 60, 0.42), transparent 70%);
+  animation: blobFloat3 30s ease-in-out infinite;
+}
+
+.bg-decor__blob--4 {
+  width: 16rem; height: 16rem;
+  bottom: 12%; right: 6%;
+  background: radial-gradient(circle at 50% 50%, rgba(217, 70, 239, 0.3), transparent 70%);
+  animation: blobFloat2 24s ease-in-out infinite reverse;
+}
+
+.bg-decor__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+@keyframes blobFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(3rem, 2rem) scale(1.12); }
+  66%      { transform: translate(-1.5rem, 3rem) scale(0.94); }
+}
+@keyframes blobFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-2.5rem, 2.5rem) scale(1.1); }
+}
+@keyframes blobFloat3 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+  50%      { transform: translate(2rem, -1.5rem) rotate(15deg) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-decor__blob { animation: none !important; }
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+
+/* ═══════════════════════════════════════════════
+   2. HEADER — GLASS + GRADIENT BORDER + DESKTOP NAV
+   ═══════════════════════════════════════════════ */
+
+#app-header {
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: none;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06), 0 12px 24px -18px rgba(15, 23, 42, 0.25);
+  position: sticky;
+}
+
+#app-header::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: var(--grad-primary-diag);
+  background-size: 200% 100%;
+  animation: shineSlide 6s linear infinite;
+}
+
+.header-inner { max-width: var(--content-max); }
+
+.logo__icon {
+  background: var(--grad-primary);
+  box-shadow: var(--glow-primary);
+  position: relative;
+  animation: iconPulse 3.4s ease-in-out infinite;
+}
+
+.logo__icon::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 1.5px solid rgba(16, 185, 129, 0.35);
+  animation: ringPulse 2.6s ease-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50%      { transform: rotate(-6deg) scale(1.06); }
+}
+@keyframes ringPulse {
+  0%   { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+.header-date {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--primary-700);
+  transition: transform var(--duration-fast) var(--ease-pop), box-shadow var(--duration-fast) ease;
+}
+.header-date:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+
+/* Desktop nav pills injected into header */
+.desktop-nav {
+  display: none;
+  border-top: none;
+  padding: 0;
+  gap: 0.35rem;
+  background: rgba(241, 245, 249, 0.6);
+  border-radius: var(--radius-full);
+  padding: 0.3rem;
+}
+
+.desktop-nav__btn {
+  border-radius: var(--radius-full);
+  position: relative;
+  overflow: hidden;
+}
+
+.desktop-nav__btn i { transition: transform var(--duration-normal) var(--ease-spring); }
+
+.desktop-nav__btn:hover {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--primary-700);
+}
+.desktop-nav__btn:hover i { transform: translateY(-1px) scale(1.1); }
+
+.desktop-nav__btn.active {
+  background: var(--grad-primary);
+  color: var(--white);
+  box-shadow: var(--glow-primary);
+}
+
+
+/* ═══════════════════════════════════════════════
+   3. BOTTOM NAV — FLOATING DOCK
+   ═══════════════════════════════════════════════ */
+
+#bottom-nav {
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  border-top: none;
+  border-radius: var(--radius-2xl);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow-pop);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding-bottom: max(var(--sp-1), env(safe-area-inset-bottom, 0px));
+}
+
+.nav-btn.active {
+  color: var(--primary-700);
+}
+
+.nav-btn.active::before {
+  content: '';
+  position: absolute;
+  inset: -0.2rem 0.15rem;
+  background: rgba(16, 185, 129, 0.12);
+  border-radius: var(--radius-lg);
+  z-index: -1;
+  animation: popIn var(--duration-normal) var(--ease-pop);
+}
+
+.nav-btn--camera .nav-btn__icon-wrap {
+  background: var(--grad-primary-diag);
+  background-size: 200% 200%;
+  animation: gradientShift 5s ease infinite;
+}
+
+body:not(.desktop-mode) #bottom-nav { display: flex; }
+
+
+/* ═══════════════════════════════════════════════
+   4. LAYOUT — DESKTOP THỰC SỰ
+   ═══════════════════════════════════════════════ */
+
+.container,
+#app-content {
+  max-width: var(--content-max);
+}
+
+@media (min-width: 768px) {
+  #bottom-nav { display: none !important; }
+  #app-header .desktop-nav { display: flex; }
+  #app-header .header-actions { display: none; }
+}
+
+@media (min-width: 1024px) {
+  #app-content { padding: var(--sp-8) var(--sp-6) var(--sp-8); }
+
+  .page__header { margin-bottom: var(--sp-6); }
+  .page-title { font-size: 2.1rem; }
+
+  .hero { padding: var(--sp-8) 3rem; }
+  .hero__title { font-size: 2.35rem; max-width: 34rem; }
+  .hero__subtitle { max-width: 30rem; font-size: var(--fs-lg); }
+  .hero__actions { grid-template-columns: max-content max-content; }
+
+  .quick-grid { grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); }
+  .metric-grid { gap: var(--sp-4); }
+  .camera-actions { max-width: 26rem; }
+  .search-bar__input { font-size: var(--fs-lg); padding-top: 0.9rem; padding-bottom: 0.9rem; }
+}
+
+
+/* ═══════════════════════════════════════════════
+   5. PAGE ENTRANCE + STAGGER REVEAL
+   ═══════════════════════════════════════════════ */
+
+.page { animation: pageIn 0.5s var(--ease-pop); }
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.reveal-pop {
+  opacity: 0;
+  transform: translateY(16px) scale(0.97);
+  transition: opacity 0.55s var(--ease-pop), transform 0.55s var(--ease-pop);
+}
+.reveal-pop.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+
+/* ═══════════════════════════════════════════════
+   6. THẺ (CARDS) — CHIỀU SÂU, VIỀN GRADIENT, HOVER LIFT
+   ═══════════════════════════════════════════════ */
+
+.card, .quick-card, .diary-entry, .lookup-history__item,
+.history-date-card, .result-card, .nutrient-box, .metric-card,
+.chart-legend__item, .meal-plan-card, .water-tracker {
+  position: relative;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-normal) var(--ease-pop),
+              box-shadow var(--duration-normal) var(--ease-pop),
+              border-color var(--duration-normal) ease;
+}
+
+.card { border-color: rgba(15, 23, 42, 0.06); }
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: var(--sp-4); right: var(--sp-4);
+  height: 3px;
+  border-radius: 0 0 var(--radius-full) var(--radius-full);
+  background: var(--grad-primary);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition: opacity var(--duration-normal) ease, transform var(--duration-normal) var(--ease-pop);
+}
+.card:hover::before { opacity: 1; transform: scaleX(1); }
+
+.card:hover, .diary-entry:hover, .lookup-history__item:hover, .history-date-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-pop);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.card--glass {
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow-pop);
+}
+
+.quick-card { overflow: hidden; }
+.quick-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--grad-primary);
+  opacity: 0;
+  transition: opacity var(--duration-normal) ease;
+  z-index: -1;
+}
+.quick-card:hover {
+  transform: translateY(-6px) rotate(-0.4deg);
+  box-shadow: var(--shadow-pop-lg);
+  border-color: transparent;
+}
+.quick-card:hover .quick-card__icon {
+  transform: scale(1.12) rotate(-6deg);
+  box-shadow: var(--shadow-md);
+}
+.quick-card__icon { transition: transform var(--duration-normal) var(--ease-spring), box-shadow var(--duration-normal) ease; }
+
+.nutrient-box, .metric-card, .chart-legend__item {
+  transition: transform var(--duration-fast) var(--ease-pop), box-shadow var(--duration-fast) ease;
+}
+.nutrient-box:hover, .metric-card:hover, .chart-legend__item:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--shadow-md);
+}
+
+/* Staggered pop for grid children */
+.quick-grid > *:nth-child(1), .metric-grid > *:nth-child(1), .nutrient-grid > *:nth-child(1), .chart-legend > *:nth-child(1) { transition-delay: 0.02s; }
+.quick-grid > *:nth-child(2), .metric-grid > *:nth-child(2), .nutrient-grid > *:nth-child(2), .chart-legend > *:nth-child(2) { transition-delay: 0.08s; }
+.quick-grid > *:nth-child(3), .metric-grid > *:nth-child(3), .nutrient-grid > *:nth-child(3), .chart-legend > *:nth-child(3) { transition-delay: 0.14s; }
+.quick-grid > *:nth-child(4), .metric-grid > *:nth-child(4) { transition-delay: 0.2s; }
+
+
+/* ═══════════════════════════════════════════════
+   7. HERO — HÌNH KHỐI + GRADIENT ĐỘNG
+   ═══════════════════════════════════════════════ */
+
+.hero {
+  background: var(--grad-primary-diag);
+  background-size: 200% 200%;
+  animation: gradientShift 10s ease infinite;
+  box-shadow: var(--shadow-pop-lg);
+}
+
+.hero::before { display: none; }
+
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255,255,255,0.22) 0%, transparent 30%),
+    radial-gradient(circle at 6% 88%, rgba(255,255,255,0.14) 0%, transparent 36%);
+  pointer-events: none;
+}
+
+.hero__shape {
+  position: absolute;
+  border-radius: 32% 68% 60% 40% / 45% 35% 65% 55%;
+  background: rgba(255,255,255,0.12);
+  pointer-events: none;
+}
+.hero__shape--1 { width: 8rem; height: 8rem; top: -2rem; right: -1.5rem; animation: floaty 8s ease-in-out infinite; }
+.hero__shape--2 { width: 4.5rem; height: 4.5rem; bottom: -1rem; left: 20%; animation: floaty 6s ease-in-out infinite reverse; }
+
+.hero__badge {
+  animation: floaty 4s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes floaty {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-10px) rotate(8deg); }
+}
+
+
+/* ═══════════════════════════════════════════════
+   8. NÚT (BUTTONS) — GRADIENT, SHINE SWEEP, RIPPLE
+   ═══════════════════════════════════════════════ */
+
+.btn { position: relative; overflow: hidden; isolation: isolate; }
+
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.35) 40%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 0.6s ease;
+  z-index: 1;
+  pointer-events: none;
+}
+.btn:hover::before { transform: translateX(120%); }
+
+.btn--primary {
+  background: var(--grad-primary);
+  box-shadow: var(--glow-primary);
+}
+.btn--primary:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -8px rgba(5,150,105,0.55); }
+.btn--primary:active { transform: translateY(0) scale(0.96); }
+
+.btn--danger { background: linear-gradient(135deg, #ef4444, #f87171); box-shadow: 0 8px 20px -8px rgba(239,68,68,0.5); }
+
+.btn--outline:hover { border-color: var(--primary-500); color: var(--primary-700); background: rgba(16,185,129,0.06); }
+.btn--secondary:hover { background: var(--slate-200); }
+
+.btn--hero-primary { position: relative; }
+.btn--hero-primary:hover { transform: translateY(-2px) scale(1.02); box-shadow: var(--shadow-md); }
+.btn--hero-secondary:hover { background: rgba(255,255,255,0.24); transform: translateY(-2px); }
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.55);
+  transform: scale(0);
+  animation: rippleAnim 0.6s ease-out;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes rippleAnim {
+  to { transform: scale(2.6); opacity: 0; }
+}
+
+
+/* ═══════════════════════════════════════════════
+   9. FORM — FOCUS ĐỘNG, BO TRÒN MỀM
+   ═══════════════════════════════════════════════ */
+
+.form-input, .form-select, .search-bar__input {
+  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease, transform var(--duration-fast) ease;
+}
+.form-input:focus, .form-select:focus, .search-bar__input:focus {
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.16);
+  transform: translateY(-1px);
+}
+
+.search-bar__btn { box-shadow: var(--glow-primary); }
+.search-bar__btn:hover { transform: translateY(-50%) scale(1.05); }
+
+
+/* ═══════════════════════════════════════════════
+   10. THANH TIẾN TRÌNH — GLOW + STRIPE ĐỘNG
+   ═══════════════════════════════════════════════ */
+
+.progress-bar { overflow: visible; background: rgba(148, 163, 184, 0.22); }
+.progress-bar__fill {
+  position: relative;
+  box-shadow: 0 0 12px currentColor;
+  background-size: 200% 100%;
+  animation: gradientShift 3.5s ease infinite;
+  overflow: hidden;
+}
+.progress-bar__fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(115deg, rgba(255,255,255,0.35) 0 10px, transparent 10px 20px);
+  animation: stripeMove 1.4s linear infinite;
+  opacity: 0.5;
+}
+@keyframes stripeMove {
+  from { background-position: 0 0; }
+  to   { background-position: 40px 0; }
+}
+
+
+/* ═══════════════════════════════════════════════
+   11. CAMERA — KHUNG QUÉT KIỂU AR
+   ═══════════════════════════════════════════════ */
+
+.camera-viewport { border: 1px solid rgba(16,185,129,0.25); }
+
+.camera-viewport::before,
+.camera-viewport::after,
+.scanner-overlay .corner {
+  content: '';
+}
+
+.camera-wrapper { box-shadow: var(--shadow-pop-lg); }
+
+.scanner-overlay::before,
+.scanner-overlay::after {
+  content: '';
+  position: absolute;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 3px solid var(--primary-400);
+  filter: drop-shadow(0 0 6px rgba(52,211,153,0.6));
+}
+.scanner-overlay::before {
+  top: 0.6rem; left: 0.6rem;
+  border-right: none; border-bottom: none;
+  border-top-left-radius: var(--radius-md);
+}
+.scanner-overlay::after {
+  bottom: 0.6rem; right: 0.6rem;
+  border-left: none; border-top: none;
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.camera-btn:hover { transform: translateY(-2px); }
+.camera-btn--primary { background: var(--grad-primary); box-shadow: var(--glow-primary); }
+
+
+/* ═══════════════════════════════════════════════
+   12. TAG / BADGE — CHIP GRADIENT
+   ═══════════════════════════════════════════════ */
+
+.tag { transition: transform var(--duration-fast) var(--ease-pop); }
+.tag:hover { transform: translateY(-2px) scale(1.04); }
+.tag--primary { background: linear-gradient(135deg, var(--primary-100), var(--primary-200)); }
+.tag--amber { background: linear-gradient(135deg, var(--amber-100), #fde68a); }
+.tag--sky { background: linear-gradient(135deg, var(--sky-100), #bae6fd); }
+
+.bmi-badge, .result-card__badge { transition: transform var(--duration-fast) var(--ease-pop); }
+
+
+/* ═══════════════════════════════════════════════
+   13. MODAL / TOAST — POP ĐỘNG, TAY CẦM KÉO
+   ═══════════════════════════════════════════════ */
+
+.modal-content {
+  box-shadow: var(--shadow-pop-lg);
+  position: relative;
+}
+.modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0.55rem; left: 50%;
+  transform: translateX(-50%);
+  width: 2.5rem; height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--slate-300);
+}
+
+.modal-close { transition: transform var(--duration-fast) var(--ease-pop), background var(--duration-fast) ease; }
+.modal-close:hover { background: var(--rose-100); color: var(--rose-700); transform: rotate(90deg); }
+
+@media (min-width: 640px) {
+  .modal-overlay { align-items: center; }
+  .modal-content {
+    border-radius: var(--radius-2xl);
+    transform: translateY(24px) scale(0.94);
+    opacity: 0;
+    transition: transform var(--duration-normal) var(--ease-pop), opacity var(--duration-normal) ease;
+  }
+  .modal--show .modal-content { transform: translateY(0) scale(1); opacity: 1; }
+  .modal-content::before { display: none; }
+}
+
+.toast {
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-pop-lg);
+  transition: transform 0.45s var(--ease-pop), opacity var(--duration-normal) ease;
+}
+.toast__icon { animation: iconPulse 1.2s ease-in-out 1; }
+
+
+/* ═══════════════════════════════════════════════
+   14. STAT / RESULT / HOME EXTRAS
+   ═══════════════════════════════════════════════ */
+
+.stat-card__value, .result-card__calories, .metric-card__value {
+  background: var(--grad-primary-diag);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.metric-card--tdee .metric-card__value { background: var(--grad-accent); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.metric-card--water .metric-card__value { background: var(--grad-blue); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+.water-tracker__btn { box-shadow: var(--glow-blue); transition: transform var(--duration-fast) var(--ease-pop); }
+.water-tracker__btn:hover { transform: translateY(-2px) scale(1.05); }
+
+.setup-card { animation: floaty 5s ease-in-out infinite; }
+
+.empty-state__icon { animation: floaty 4.5s ease-in-out infinite; }
+
+
+/* ═══════════════════════════════════════════════
+   15. SCROLLBAR ĐIỂM NHẤN (desktop)
+   ═══════════════════════════════════════════════ */
+
+@media (min-width: 1024px) {
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.35); border-radius: var(--radius-full); }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.55); }
+}
+
+
+/* ═══════════════════════════════════════════════
+   16. SHINE-SLIDE (header underline)
+   ═══════════════════════════════════════════════ */
+
+@keyframes shineSlide {
+  0%   { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}

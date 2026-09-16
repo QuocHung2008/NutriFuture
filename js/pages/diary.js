@@ -44,8 +44,11 @@ const NF_PageDiary = (() => {
             </div>
           </div>
 
-          <!-- Day Summary & Chart Card -->
-          <div class="card card--glass">
+          <div class="grid-2-desktop">
+            <!-- Cột trái: Chart và thao tác -->
+            <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
+              <!-- Day Summary & Chart Card -->
+              <div class="card card--glass">
             <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:var(--sp-3);">
               <div>
                 <div class="card__label">${NF_UI.formatDate(selectedDate).toUpperCase()}</div>
@@ -96,8 +99,12 @@ const NF_PageDiary = (() => {
             </button>
           </div>
 
-          <!-- Meals Grouped by Type -->
-          <div id="diary-meals-container" style="display:flex; flex-direction:column; gap:var(--sp-3);">
+            </div> <!-- Close left column -->
+
+            <!-- Cột phải: Danh sách bữa ăn -->
+            <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
+              <!-- Meals Grouped by Type -->
+              <div id="diary-meals-container" style="display:flex; flex-direction:column; gap:var(--sp-3);">
             ${mealTypes.map(type => {
               const meals = (summary.entries || []).filter(e => e.mealType === type);
               const mealCal = meals.reduce((sum, item) => sum + (item.calories || 0), 0);
@@ -142,7 +149,9 @@ const NF_PageDiary = (() => {
                 </div>
               `;
             }).join('')}
-          </div>
+              </div>
+            </div> <!-- Close right column -->
+          </div> <!-- Close grid-2-desktop -->
         </div>
       </div>
     `;

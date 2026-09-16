@@ -46,8 +46,12 @@ const NF_PageCamera = (() => {
             </div>
           ` : ''}
 
-          <!-- Camera Viewport Box -->
-          <div class="camera-wrapper">
+          <!-- Grid Layout -->
+          <div class="grid-2-desktop">
+            <!-- Cột trái: Camera -->
+            <div>
+              <!-- Camera Viewport Box -->
+              <div class="camera-wrapper">
             <div class="camera-viewport" id="camera-viewport">
               <video id="camera-video" playsinline autoplay muted style="display:none;"></video>
               <img id="camera-preview" style="display:none;" alt="Captured preview" />
@@ -102,10 +106,15 @@ const NF_PageCamera = (() => {
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Phân tích lại
               </button>
             </div>
-          </div>
+              </div>
+            </div> <!-- Close left column -->
 
-          <!-- Analysis Result Section -->
-          <div id="camera-result-container"></div>
+            <!-- Cột phải: Kết quả phân tích -->
+            <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
+              <!-- Analysis Result Section -->
+              <div id="camera-result-container"></div>
+            </div> <!-- Close right column -->
+          </div> <!-- Close grid-2-desktop -->
         </div>
       </div>
     `;

@@ -45,7 +45,11 @@ const NF_PageLookup = (() => {
             </div>
           ` : ''}
 
-          <!-- Search Bar -->
+          <!-- Grid Layout -->
+          <div class="grid-2-desktop">
+            <!-- Cột trái: Tìm kiếm & Kết quả -->
+            <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
+              <!-- Search Bar -->
           <div class="card" style="padding:var(--sp-3);">
             <form id="form-search-food" class="search-bar" onsubmit="return false;">
               <i class="fa-solid fa-magnifying-glass search-bar__icon"></i>
@@ -77,8 +81,12 @@ const NF_PageLookup = (() => {
           <!-- Result Container -->
           <div id="lookup-result-area"></div>
 
-          <!-- History Section -->
-          <div class="card" id="lookup-history-section">
+            </div> <!-- Close left column -->
+
+            <!-- Cột phải: Lịch sử -->
+            <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
+              <!-- History Section -->
+              <div class="card" id="lookup-history-section">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-3);">
               <div class="section-label" style="margin-bottom:0;">LỊCH SỬ TRA CỨU GẦN ĐÂY</div>
               ${history.length > 0 ? `
@@ -106,7 +114,9 @@ const NF_PageLookup = (() => {
                 </div>
               `}
             </div>
-          </div>
+              </div>
+            </div> <!-- Close right column -->
+          </div> <!-- Close grid-2-desktop -->
         </div>
       </div>
     `;
