@@ -2,34 +2,26 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#059669" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="NutriFuture" />
-  
-  <title>NutriFuture — AI Dinh Dưỡng Học Đường THPT</title>
-  <meta name="description" content="NutriFuture — Ứng dụng AI phân tích và tư vấn dinh dưỡng học đường cho học sinh THPT, tích hợp Google Gemini Vision & Text API." />
-  
-  <!-- Preconnect & Fonts -->
+  <meta name="color-scheme" content="light" />
+  <title>NutriFuture — Dinh dưỡng học đường thông minh</title>
+  <meta name="description" content="NutriFuture giúp học sinh THPT tra cứu dinh dưỡng, phân tích món ăn bằng AI, theo dõi nhật ký và cá nhân hóa mục tiêu dinh dưỡng." />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://QuocHung2008.github.io/NutriFuture/" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  
-  <!-- Icons: Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  
-  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  
-  <!-- Design System CSS -->
   <link rel="stylesheet" href="css/style.css" />
-  <!-- Theme Boost: hiệu ứng, hình khối, tương tác, bố cục desktop -->
   <link rel="stylesheet" href="css/theme-boost.css" />
+  <link rel="stylesheet" href="css/audit-overrides.css" />
 </head>
 <body>
-
-  <!-- Decorative animated background (blobs + grid, no dark mode) -->
   <div class="bg-decor" aria-hidden="true">
     <div class="bg-decor__grid"></div>
     <div class="bg-decor__blob bg-decor__blob--1"></div>
@@ -38,120 +30,60 @@
     <div class="bg-decor__blob bg-decor__blob--4"></div>
   </div>
 
-  <!-- App Header -->
   <header id="app-header">
     <div class="header-inner">
-      <div class="logo" onclick="location.hash='#home'" title="Về trang chủ">
-        <div class="logo__icon">
-          <i class="fa-solid fa-leaf"></i>
-        </div>
-        <div class="logo__text">
-          Nutri<span>Future</span>
-        </div>
-      </div>
+      <a class="logo" href="#home" title="Về trang chủ" aria-label="NutriFuture — Trang chủ">
+        <div class="logo__icon"><i class="fa-solid fa-leaf" aria-hidden="true"></i></div>
+        <div class="logo__text">Nutri<span>Future</span></div>
+      </a>
 
-      <!-- Desktop navigation (uses the same .nav-btn class as the bottom nav,
-           so js/app.js's existing router/active-state logic drives it too) -->
-      <nav class="desktop-nav" aria-label="Điều hướng (máy tính)">
-        <button class="nav-btn desktop-nav__btn active" data-target="#home" title="Trang chủ">
-          <i class="fa-solid fa-house"></i><span>Trang chủ</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#lookup" title="Tra cứu">
-          <i class="fa-solid fa-magnifying-glass"></i><span>Tra cứu</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#camera" title="Camera AI">
-          <i class="fa-solid fa-camera-retro"></i><span>Camera AI</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#diary" title="Nhật ký">
-          <i class="fa-solid fa-book-open"></i><span>Nhật ký</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#history" title="Lịch sử">
-          <i class="fa-solid fa-chart-pie"></i><span>Báo cáo</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#profile" title="Hồ sơ">
-          <i class="fa-solid fa-user-graduate"></i><span>Hồ sơ</span>
-        </button>
+      <nav class="desktop-nav" aria-label="Điều hướng chính">
+        <button class="nav-btn desktop-nav__btn active" data-target="#home" title="Trang chủ"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Trang chủ</span></button>
+        <button class="nav-btn desktop-nav__btn" data-target="#lookup" title="Tra cứu"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>Tra cứu</span></button>
+        <button class="nav-btn desktop-nav__btn" data-target="#camera" title="Camera AI"><i class="fa-solid fa-camera-retro" aria-hidden="true"></i><span>Camera AI</span></button>
+        <button class="nav-btn desktop-nav__btn" data-target="#diary" title="Nhật ký"><i class="fa-solid fa-book-open" aria-hidden="true"></i><span>Nhật ký</span></button>
+        <button class="nav-btn desktop-nav__btn" data-target="#history" title="Lịch sử"><i class="fa-solid fa-chart-pie" aria-hidden="true"></i><span>Báo cáo</span></button>
+        <button class="nav-btn desktop-nav__btn" data-target="#profile" title="Hồ sơ"><i class="fa-solid fa-user-graduate" aria-hidden="true"></i><span>Hồ sơ</span></button>
       </nav>
 
       <div class="header-actions">
-        <a href="#history" class="header-date" title="Xem lịch sử & báo cáo" style="display:flex; align-items:center; gap:0.25rem;">
-          <i class="fa-solid fa-chart-pie" style="color:var(--primary-600);"></i>
-          <span>Báo cáo</span>
-        </a>
-        <a href="#profile" class="header-date" title="Hồ sơ cá nhân" style="padding:0.35rem 0.6rem;">
-          <i class="fa-solid fa-user-gear" style="color:var(--slate-600);"></i>
-        </a>
+        <a href="#history" class="header-date" title="Xem lịch sử & báo cáo"><i class="fa-solid fa-chart-pie" aria-hidden="true"></i><span>Báo cáo</span></a>
+        <a href="#profile" class="header-date" aria-label="Mở hồ sơ cá nhân" title="Hồ sơ cá nhân"><i class="fa-solid fa-user-gear" aria-hidden="true"></i></a>
       </div>
     </div>
   </header>
 
-  <!-- Main Viewport Content Container (SPA Router target) -->
-  <main id="app-content" role="main">
+  <main id="app-content" role="main" tabindex="-1">
     <div class="loading-container" style="padding:var(--sp-8) 0;">
       <div class="loading-spinner"></div>
       <p class="loading-text">Đang khởi chạy NutriFuture AI...</p>
     </div>
   </main>
 
-  <!-- Bottom Navigation Bar (Mobile-first) -->
-  <nav id="bottom-nav" aria-label="Điều hướng chính">
-    <button class="nav-btn active" data-target="#home" title="Trang chủ">
-      <i class="fa-solid fa-house"></i>
-      <span>Trang chủ</span>
-    </button>
-
-    <button class="nav-btn" data-target="#lookup" title="Tra cứu">
-      <i class="fa-solid fa-magnifying-glass"></i>
-      <span>Tra cứu</span>
-    </button>
-
-    <button class="nav-btn nav-btn--camera" data-target="#camera" title="Camera AI">
-      <div class="nav-btn__icon-wrap">
-        <i class="fa-solid fa-camera"></i>
-      </div>
-      <span>Camera AI</span>
-    </button>
-
-    <button class="nav-btn" data-target="#diary" title="Nhật ký">
-      <i class="fa-solid fa-book-open"></i>
-      <span>Nhật ký</span>
-    </button>
-
-    <button class="nav-btn" data-target="#profile" title="Hồ sơ">
-      <i class="fa-solid fa-user-graduate"></i>
-      <span>Hồ sơ</span>
-    </button>
+  <nav id="bottom-nav" aria-label="Điều hướng chính trên điện thoại">
+    <button class="nav-btn active" data-target="#home" title="Trang chủ"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Trang chủ</span></button>
+    <button class="nav-btn" data-target="#lookup" title="Tra cứu"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>Tra cứu</span></button>
+    <button class="nav-btn nav-btn--camera" data-target="#camera" title="Camera AI"><div class="nav-btn__icon-wrap"><i class="fa-solid fa-camera" aria-hidden="true"></i></div><span>Camera AI</span></button>
+    <button class="nav-btn" data-target="#diary" title="Nhật ký"><i class="fa-solid fa-book-open" aria-hidden="true"></i><span>Nhật ký</span></button>
+    <button class="nav-btn" data-target="#profile" title="Hồ sơ"><i class="fa-solid fa-user-graduate" aria-hidden="true"></i><span>Hồ sơ</span></button>
   </nav>
 
-  <!-- Global Toast Notification Container -->
-  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
-
-  <!-- Global Modal Overlay Container -->
-  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
-    <div class="modal-content" id="modal-content">
-      <!-- Injected dynamically by NF_UI.showModal() -->
-    </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Hộp thoại">
+    <div class="modal-content" id="modal-content"></div>
   </div>
 
-  <!-- Scripts -->
-  <!-- 1. Configuration (Optional external config, gitignored) -->
-  <script src="js/config.js" onerror="/* config.js is optional if user enters key in UI */"></script>
-  
-  <!-- 2. Core Modules -->
+  <script src="js/config.js" onerror=""></script>
   <script src="js/storage.js"></script>
   <script src="js/gemini.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/motion.js"></script>
-  
-  <!-- 3. Page Modules -->
   <script src="js/pages/home.js"></script>
   <script src="js/pages/camera.js"></script>
   <script src="js/pages/lookup.js"></script>
   <script src="js/pages/profile.js"></script>
   <script src="js/pages/diary.js"></script>
   <script src="js/pages/history.js"></script>
-  
-  <!-- 4. App Controller -->
   <script src="js/app.js"></script>
 </body>
 </html>
