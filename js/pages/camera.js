@@ -1,5 +1,5 @@
 /**
- * NutriFuture — Camera AI Page
+ * NutriFuture — Camera AI Page (Toàn màn hình)
  * Nhận diện món ăn thời gian thực qua Camera hoặc Tải ảnh lên bằng Google Gemini Vision API
  */
 const NF_PageCamera = (() => {
@@ -8,12 +8,14 @@ const NF_PageCamera = (() => {
   let currentStream = null;
   let capturedBase64 = null;
   let lastAnalysisResult = null;
+  let currentFacingMode = 'environment'; // 'environment' = camera sau, 'user' = camera trước
 
   function stopCamera() {
     if (currentStream) {
       currentStream.getTracks().forEach(track => track.stop());
       currentStream = null;
     }
+    document.body.classList.remove('camera-active');
   }
 
   function render(container) {
@@ -21,65 +23,59 @@ const NF_PageCamera = (() => {
     stopCamera();
     capturedBase64 = null;
     lastAnalysisResult = null;
+    currentFacingMode = 'environment';
+
+    // Bật chế độ toàn màn hình: ẩn header/thanh điều hướng
+    document.body.classList.add('camera-active');
 
     const hasApiKey = NF_Gemini.isConfigured();
 
     container.innerHTML = `
       <div class="page page--camera">
-        <div class="page__header">
-          <div class="section-label">Công nghệ Thị giác Máy tính AI</div>
-          <h1 class="page-title">Camera AI</h1>
-          <p class="text-sm text-muted">Chụp ảnh món ăn để AI nhận diện calo và thành phần dinh dưỡng</p>
-        </div>
+        <div class="camera-stage" id="camera-viewport">
+          <video id="camera-video" playsinline autoplay muted style="display:none;"></video>
+          <img id="camera-preview" style="display:none;" alt="Captured preview" />
 
-        <div class="page__body">
-          ${!hasApiKey ? `
-            <div class="card setup-card" style="margin-bottom:var(--sp-4);">
-              <div class="setup-card__icon"><i class="fa-solid fa-key" style="color:var(--amber-600);"></i></div>
-              <h3 class="setup-card__title">Cần thiết lập API Key Gemini</h3>
-              <p class="setup-card__desc">
-                Để sử dụng tính năng Camera AI và Tra cứu AI, bạn cần nhập Google Gemini API Key (miễn phí từ Google AI Studio).
-              </p>
-              <button class="btn btn--primary" id="btn-quick-config-api">
-                <i class="fa-solid fa-gear"></i> Nhập API Key ngay
+          <!-- Placeholder when camera is inactive -->
+          <div class="camera-placeholder" id="camera-placeholder">
+            <div class="camera-placeholder__icon">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+            <p>Bật camera hoặc tải ảnh đĩa thức ăn lên để AI phân tích</p>
+            ${!hasApiKey ? `
+              <button class="btn btn--primary" id="btn-quick-config-api" style="margin-top:var(--sp-3);">
+                <i class="fa-solid fa-key"></i> Nhập API Key Gemini
               </button>
+            ` : ''}
+          </div>
+
+          <!-- Scanning animation overlay -->
+          <div class="scanner-overlay hidden" id="scanner-overlay">
+            <div class="scanner-overlay__bg"></div>
+            <div class="scanner-line"></div>
+            <div class="scanner-info">
+              <span><i class="fa-solid fa-brain"></i> Gemini Vision đang phân tích...</span>
+              <span class="loading-spinner loading-spinner--sm"></span>
             </div>
-          ` : ''}
+          </div>
 
-          <!-- Grid Layout -->
-          <div class="grid-2-desktop">
-            <!-- Cột trái: Camera -->
-            <div>
-              <!-- Camera Viewport Box -->
-              <div class="camera-wrapper">
-            <div class="camera-viewport" id="camera-viewport">
-              <video id="camera-video" playsinline autoplay muted style="display:none;"></video>
-              <img id="camera-preview" style="display:none;" alt="Captured preview" />
-              
-              <!-- Placeholder when camera is inactive -->
-              <div class="camera-placeholder" id="camera-placeholder">
-                <div class="camera-placeholder__icon">
-                  <i class="fa-solid fa-camera"></i>
-                </div>
-                <p>Bật camera hoặc tải ảnh đĩa thức ăn lên để AI phân tích</p>
-              </div>
+          <!-- Hidden canvas for capture -->
+          <canvas id="camera-canvas" style="display:none;"></canvas>
 
-              <!-- Scanning animation overlay -->
-              <div class="scanner-overlay hidden" id="scanner-overlay">
-                <div class="scanner-overlay__bg"></div>
-                <div class="scanner-line"></div>
-                <div class="scanner-info">
-                  <span><i class="fa-solid fa-brain"></i> Gemini Vision đang phân tích...</span>
-                  <span class="loading-spinner loading-spinner--sm"></span>
-                </div>
-              </div>
-            </div>
+          <!-- Thanh trên: quay lại + tiêu đề + lật camera -->
+          <div class="camera-topbar">
+            <button class="camera-icon-btn" id="btn-camera-back" title="Quay lại">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div class="camera-topbar__title">Camera AI</div>
+            <button class="camera-icon-btn hidden" id="btn-flip-camera" title="Lật camera trước/sau">
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+          </div>
 
-            <!-- Hidden canvas for capture -->
-            <canvas id="camera-canvas" style="display:none;"></canvas>
-
-            <!-- Control buttons -->
-            <div class="camera-actions" id="camera-controls-start">
+          <!-- Thanh dưới: điều khiển nổi trên video -->
+          <div class="camera-bottombar" id="camera-controls-start">
+            <div class="btn--start-group">
               <button class="camera-btn camera-btn--primary" id="btn-start-camera">
                 <i class="fa-solid fa-video"></i> Mở Camera
               </button>
@@ -88,17 +84,20 @@ const NF_PageCamera = (() => {
               </button>
               <input type="file" id="file-input-image" accept="image/*" style="display:none;" />
             </div>
+          </div>
 
-            <div class="camera-actions hidden" id="camera-controls-live">
-              <button class="camera-btn camera-btn--secondary" id="btn-cancel-camera">
-                <i class="fa-solid fa-xmark"></i> Hủy
-              </button>
-              <button class="camera-btn camera-btn--primary" id="btn-capture-shot">
-                <i class="fa-solid fa-camera-retro"></i> Chụp ngay
-              </button>
-            </div>
+          <div class="camera-bottombar hidden" id="camera-controls-live">
+            <button class="camera-icon-btn" id="btn-cancel-camera" title="Hủy">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="shutter-btn" id="btn-capture-shot" title="Chụp ngay" aria-label="Chụp ảnh"></button>
+            <button class="camera-icon-btn" id="btn-flip-camera-live" title="Lật camera trước/sau">
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+          </div>
 
-            <div class="camera-actions hidden" id="camera-controls-retake">
+          <div class="camera-bottombar hidden" id="camera-controls-retake">
+            <div class="btn--start-group">
               <button class="camera-btn camera-btn--secondary" id="btn-retake">
                 <i class="fa-solid fa-rotate-left"></i> Chụp lại
               </button>
@@ -106,15 +105,10 @@ const NF_PageCamera = (() => {
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Phân tích lại
               </button>
             </div>
-              </div>
-            </div> <!-- Close left column -->
+          </div>
 
-            <!-- Cột phải: Kết quả phân tích -->
-            <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
-              <!-- Analysis Result Section -->
-              <div id="camera-result-container"></div>
-            </div> <!-- Close right column -->
-          </div> <!-- Close grid-2-desktop -->
+          <!-- Kết quả phân tích: trượt lên như bottom sheet -->
+          <div class="camera-result-sheet" id="camera-result-container"></div>
         </div>
       </div>
     `;
@@ -141,22 +135,26 @@ const NF_PageCamera = (() => {
     const btnRetake = container.querySelector('#btn-retake');
     const btnReanalyze = container.querySelector('#btn-reanalyze');
     const btnQuickConfig = container.querySelector('#btn-quick-config-api');
+    const btnBack = container.querySelector('#btn-camera-back');
+    const btnFlipTop = container.querySelector('#btn-flip-camera');
+    const btnFlipLive = container.querySelector('#btn-flip-camera-live');
 
     if (btnQuickConfig) {
       btnQuickConfig.onclick = showApiKeyModal;
     }
 
-    // Mở Camera stream
-    btnStartCamera.onclick = async () => {
+    btnBack.onclick = () => { location.hash = '#home'; };
+
+    async function openCamera() {
       try {
-        stopCamera();
+        stopCameraStreamOnly();
         placeholder.style.display = 'none';
         previewImg.style.display = 'none';
         video.style.display = 'block';
 
         const constraints = {
           video: {
-            facingMode: { ideal: 'environment' },
+            facingMode: { ideal: currentFacingMode },
             width: { ideal: 1280 },
             height: { ideal: 720 }
           },
@@ -168,27 +166,52 @@ const NF_PageCamera = (() => {
         video.srcObject = stream;
         await video.play();
 
+        // Camera trước thường được xem như gương -> lật ngang cho tự nhiên.
+        // Camera sau giữ nguyên chiều thật của khung cảnh.
+        video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'none';
+
         controlsStart.classList.add('hidden');
         controlsLive.classList.remove('hidden');
         controlsRetake.classList.add('hidden');
+        btnFlipTop.classList.remove('hidden');
       } catch (err) {
         console.error('Camera error:', err);
-        placeholder.style.display = 'block';
+        placeholder.style.display = 'flex';
         video.style.display = 'none';
         NF_UI.showToast('Không thể truy cập camera. Hãy cấp quyền hoặc tải ảnh lên từ thư viện.', 'warning');
       }
+    }
+
+    function stopCameraStreamOnly() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+    }
+
+    // Mở Camera stream
+    btnStartCamera.onclick = openCamera;
+
+    // Lật camera trước/sau (giữ phiên đang mở)
+    const flipCamera = () => {
+      currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+      NF_UI.showToast(currentFacingMode === 'user' ? 'Đã chuyển sang camera trước' : 'Đã chuyển sang camera sau', 'info');
+      openCamera();
     };
+    btnFlipTop.onclick = flipCamera;
+    btnFlipLive.onclick = flipCamera;
 
     // Hủy camera
     btnCancelCamera.onclick = () => {
-      stopCamera();
+      stopCameraStreamOnly();
       video.style.display = 'none';
       previewImg.style.display = 'none';
-      placeholder.style.display = 'block';
+      placeholder.style.display = 'flex';
 
       controlsStart.classList.remove('hidden');
       controlsLive.classList.add('hidden');
       controlsRetake.classList.add('hidden');
+      btnFlipTop.classList.add('hidden');
     };
 
     // Chụp từ camera
@@ -215,18 +238,26 @@ const NF_PageCamera = (() => {
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
+      // Nếu đang dùng camera trước (đã lật hiển thị), lật lại khi lưu ảnh
+      // để ảnh gửi cho AI đúng chiều thật, không bị ngược chữ/ vật thể.
+      if (currentFacingMode === 'user') {
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.drawImage(video, 0, 0, w, h);
 
       capturedBase64 = canvas.toDataURL('image/jpeg', 0.85);
 
       // Hiển thị ảnh chụp và dừng camera
-      stopCamera();
+      stopCameraStreamOnly();
       video.style.display = 'none';
       previewImg.src = capturedBase64;
       previewImg.style.display = 'block';
+      previewImg.style.transform = 'none';
 
       controlsLive.classList.add('hidden');
       controlsRetake.classList.remove('hidden');
+      btnFlipTop.classList.add('hidden');
 
       // Tự động phân tích
       analyzeCurrentPhoto(container);
@@ -238,7 +269,7 @@ const NF_PageCamera = (() => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
 
-      stopCamera();
+      stopCameraStreamOnly();
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
@@ -266,10 +297,12 @@ const NF_PageCamera = (() => {
           video.style.display = 'none';
           previewImg.src = capturedBase64;
           previewImg.style.display = 'block';
+          previewImg.style.transform = 'none';
 
           controlsStart.classList.add('hidden');
           controlsLive.classList.add('hidden');
           controlsRetake.classList.remove('hidden');
+          btnFlipTop.classList.add('hidden');
 
           analyzeCurrentPhoto(container);
         };
@@ -283,10 +316,13 @@ const NF_PageCamera = (() => {
       capturedBase64 = null;
       lastAnalysisResult = null;
       previewImg.style.display = 'none';
-      placeholder.style.display = 'block';
+      placeholder.style.display = 'flex';
 
       const resultBox = container.querySelector('#camera-result-container');
-      if (resultBox) resultBox.innerHTML = '';
+      if (resultBox) {
+        resultBox.innerHTML = '';
+        resultBox.classList.remove('is-open');
+      }
 
       controlsRetake.classList.add('hidden');
       controlsStart.classList.remove('hidden');
@@ -315,12 +351,14 @@ const NF_PageCamera = (() => {
     }
 
     scannerOverlay.classList.remove('hidden');
+    resultBox.classList.remove('is-open');
     resultBox.innerHTML = `
       <div class="loading-container">
         <div class="loading-spinner"></div>
         <p class="loading-text">Gemini Vision AI đang nhận diện món ăn & ước tính dinh dưỡng...</p>
       </div>
     `;
+    requestAnimationFrame(() => resultBox.classList.add('is-open'));
 
     try {
       const data = await NF_Gemini.analyzeImage(capturedBase64);
@@ -333,12 +371,12 @@ const NF_PageCamera = (() => {
       scannerOverlay.classList.add('hidden');
       const msg = NF_Gemini.getErrorMessage(err);
       resultBox.innerHTML = `
-        <div class="advice-box advice-box--warning" style="margin-top:var(--sp-4);">
+        <div class="advice-box advice-box--warning">
           <div style="font-weight:700; margin-bottom:var(--sp-1);">
             <i class="fa-solid fa-triangle-exclamation"></i> Không thể phân tích ảnh
           </div>
           <p>${msg}</p>
-          <div style="margin-top:var(--sp-3); display:flex; gap:var(--sp-2);">
+          <div style="margin-top:var(--sp-3); display:flex; gap:var(--sp-2); flex-wrap:wrap;">
             <button class="btn btn--outline btn--sm" id="btn-retry-err">
               <i class="fa-solid fa-rotate-right"></i> Thử lại
             </button>
@@ -361,7 +399,7 @@ const NF_PageCamera = (() => {
     const defaultMealType = getDefaultMealType();
 
     targetEl.innerHTML = `
-      <div class="result-card" style="margin-top:var(--sp-4); animation:fadeIn var(--duration-normal) var(--ease-out);">
+      <div class="result-card" style="border:none; background:transparent; padding:0;">
         <div class="result-card__header">
           <div>
             <span class="result-card__badge">
@@ -401,7 +439,7 @@ const NF_PageCamera = (() => {
         <!-- Micronutrients & Food Group -->
         <div style="display:flex; flex-direction:column; gap:var(--sp-2); margin-bottom:var(--sp-3);">
           ${data.foodGroup ? `
-            <div class="text-xs text-muted">
+            <div class="text-xs text-muted" style="overflow-wrap:break-word;">
               <strong>Nhóm thực phẩm:</strong> ${data.foodGroup}
             </div>
           ` : ''}
@@ -427,8 +465,8 @@ const NF_PageCamera = (() => {
           <div style="font-weight:700; font-size:var(--fs-sm); margin-bottom:var(--sp-2);">
             Lưu món ăn này vào nhật ký hôm nay
           </div>
-          <div style="display:flex; gap:var(--sp-2); align-items:center;">
-            <select id="save-meal-type-select" class="search-bar__input" style="padding:0.5rem var(--sp-2); width:auto; flex:1;">
+          <div style="display:flex; gap:var(--sp-2); align-items:center; flex-wrap:wrap;">
+            <select id="save-meal-type-select" class="search-bar__input" style="padding:0.5rem var(--sp-2); width:auto; flex:1; min-width:9rem;">
               <option value="Bữa Sáng" ${defaultMealType === 'Bữa Sáng' ? 'selected' : ''}>🌅 Bữa Sáng</option>
               <option value="Bữa Trưa" ${defaultMealType === 'Bữa Trưa' ? 'selected' : ''}>☀️ Bữa Trưa</option>
               <option value="Bữa Tối" ${defaultMealType === 'Bữa Tối' ? 'selected' : ''}>🌙 Bữa Tối</option>
@@ -495,7 +533,7 @@ const NF_PageCamera = (() => {
           <label class="card__label" for="input-modal-api-key">GEMINI API KEY</label>
           <input type="password" id="input-modal-api-key" class="search-bar__input" 
                  value="${currentKey}" placeholder="AIzaSy..." style="padding-left:var(--sp-3);" />
-          <div style="display:flex; justify-content:space-between; margin-top:0.25rem;">
+          <div style="display:flex; justify-content:space-between; margin-top:0.25rem; flex-wrap:wrap; gap:0.25rem;">
             <span class="text-xs text-muted">Lấy key miễn phí tại:</span>
             <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-xs text-bold">
               Google AI Studio <i class="fa-solid fa-arrow-up-right-from-square"></i>

@@ -2162,3 +2162,283 @@ body { position: relative; isolation: isolate; }
   ::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.35); border-radius: var(--radius-full); }
   ::-webkit-scrollbar-thumb:hover { background: rgba(16,185,129,0.55); }
 }
+
+
+/* ═══════════════════════════════════════════════
+   32. BỐ CỤC HOME (2 CỘT KHOA HỌC) + WRAP VĂN BẢN
+   + KÍCH THƯỚC NÚT NHẤT QUÁN + CAMERA TOÀN MÀN HÌNH
+   ═══════════════════════════════════════════════ */
+
+/* ── Home: cột chính (hành động) rộng hơn cột phụ (chỉ số) ── */
+.home-layout { display: flex; flex-direction: column; gap: var(--sp-4); }
+.home-layout__main, .home-layout__side { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+
+@media (min-width: 1024px) {
+  .home-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; gap: var(--sp-5); }
+  .metric-grid--stack { grid-template-columns: 1fr; }
+}
+
+/* ── Wrap văn bản: các hàng "tên trái / giá trị phải" không được
+   tràn ngang khi tên món ăn / kết quả tra cứu dài — cho item co lại
+   và chữ tự xuống dòng thay vì đẩy vỡ layout. ── */
+.result-card__header,
+.lookup-history__item,
+.diary-entry,
+.history-date-card {
+  flex-wrap: wrap;
+  row-gap: var(--sp-2);
+}
+
+.result-card__header > div:first-child,
+.lookup-history__item > div:first-child,
+.diary-entry__info,
+.history-date-card__date {
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.result-card__header > div:last-child,
+.lookup-history__item > div:last-child {
+  flex-shrink: 0;
+}
+
+.result-card__name,
+.lookup-history__item div,
+.micro-info,
+.advice-box,
+.setup-card__desc,
+.camera-placeholder p {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.diary-entry__name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+/* ── Kích thước nút: đảm bảo vùng chạm tối thiểu ~44px, phân cấp rõ
+   ràng giữa nút chính / phụ / icon. ── */
+.btn {
+  min-height: 2.75rem;
+  padding: 0.7rem 1.25rem;
+}
+.btn--sm {
+  min-height: 2.25rem;
+  padding: 0.5rem 0.875rem;
+}
+.btn--icon {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+.btn--hero {
+  min-height: 3rem;
+  padding: 0.85rem 1.5rem;
+}
+
+.camera-btn { min-height: 3.25rem; font-size: var(--fs-md); }
+.camera-btn--primary { font-weight: 800; }
+
+.water-tracker__btn { min-height: 2.5rem; padding: 0.5rem 1rem; }
+.search-bar__btn { min-height: 2.5rem; }
+.modal-close { min-width: 2.25rem; min-height: 2.25rem; }
+.diary-entry__delete { min-width: 2rem; min-height: 2rem; }
+
+/* Bottom dock: mỗi mục đủ rộng để bấm chính xác trên điện thoại */
+#bottom-nav .nav-btn { min-height: 2.75rem; }
+@media (min-width: 1024px) {
+  #bottom-nav .nav-btn { min-height: 3rem; }
+}
+
+
+/* ── CAMERA TOÀN MÀN HÌNH ──────────────────────────────────────── */
+
+body.camera-active #app-header,
+body.camera-active #bottom-nav {
+  display: none !important;
+}
+
+@media (min-width: 1024px) {
+  body.camera-active { display: block; height: auto; overflow: visible; }
+}
+
+body.camera-active #app-content {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.page--camera { height: 100%; }
+
+.camera-stage {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  background: var(--slate-950);
+  overflow: hidden;
+}
+
+.camera-stage video,
+.camera-stage img#camera-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-stage .camera-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--slate-300);
+  padding: var(--sp-6);
+}
+
+.camera-stage .scanner-overlay { position: absolute; inset: 0; }
+
+/* Thanh trên: nút quay lại + tiêu đề + lật camera, nổi trên video */
+.camera-topbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(var(--sp-3), env(safe-area-inset-top, 0px)) var(--sp-3) var(--sp-3);
+  background: linear-gradient(to bottom, rgba(2,6,23,0.65), transparent);
+  pointer-events: none;
+}
+.camera-topbar > * { pointer-events: auto; }
+
+.camera-topbar__title {
+  color: var(--white);
+  font-weight: 800;
+  font-size: var(--fs-base);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+.camera-icon-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(15,23,42,0.55);
+  backdrop-filter: blur(8px);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-lg);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-pop), background var(--duration-fast) ease;
+}
+.camera-icon-btn:hover { background: rgba(15,23,42,0.75); transform: translateY(-2px); }
+.camera-icon-btn:active { transform: scale(0.92); }
+
+/* Thanh dưới: khu vực điều khiển nổi trên video, có shutter lớn ở giữa */
+.camera-bottombar {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-4) max(var(--sp-5), env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, rgba(2,6,23,0.75), transparent);
+}
+
+.camera-bottombar .camera-btn {
+  background: rgba(15,23,42,0.55);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--white);
+  backdrop-filter: blur(8px);
+}
+.camera-bottombar .camera-btn--secondary { background: rgba(15,23,42,0.4); }
+
+/* Nút chụp hình tròn lớn kiểu shutter */
+.shutter-btn {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: var(--white);
+  border: 4px solid rgba(255,255,255,0.4);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.15), var(--shadow-pop-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast) var(--ease-pop);
+}
+.shutter-btn::before {
+  content: '';
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: var(--grad-primary, var(--primary-600));
+}
+.shutter-btn:hover { transform: scale(1.06); }
+.shutter-btn:active { transform: scale(0.9); }
+
+.camera-bottombar .btn--start-group { display: flex; gap: var(--sp-3); width: 100%; max-width: 26rem; }
+.camera-bottombar .btn--start-group .camera-btn { flex: 1; }
+
+/* Kết quả phân tích: trượt lên như bottom sheet phủ trên camera */
+.camera-result-sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 10;
+  max-height: 78%;
+  overflow-y: auto;
+  background: var(--slate-50);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  box-shadow: var(--shadow-pop-lg);
+  padding: var(--sp-4);
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform var(--duration-slow) var(--ease-pop), opacity var(--duration-normal) ease;
+  pointer-events: none;
+}
+.camera-result-sheet.is-open {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.camera-result-sheet::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  display: block;
+  width: 2.5rem;
+  height: 4px;
+  margin: 0 auto var(--sp-3);
+  border-radius: var(--radius-full);
+  background: var(--slate-300);
+}
+
+@media (min-width: 1024px) {
+  .camera-result-sheet {
+    left: auto;
+    width: min(24rem, 40%);
+    top: 0;
+    bottom: 0;
+    max-height: none;
+    border-radius: 0;
+    transform: translateX(100%);
+  }
+  .camera-result-sheet.is-open { transform: translateX(0); }
+  .camera-result-sheet::before { display: none; }
+}
