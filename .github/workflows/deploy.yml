@@ -1,0 +1,55 @@
+name: Deploy NutriFuture to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Cho phép chạy thủ công từ tab Actions trên GitHub
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Sinh js/config.js từ Secret (key KHÔNG lộ ra source code)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Chưa thiết lập Secret GEMINI_API_KEY trong Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          sed "s|__GEMINI_API_KEY__|${GEMINI_API_KEY}|g" js/config.template.js > js/config.js
+
+      - name: Chuẩn bị Pages
+        uses: actions/configure-pages@v5
+
+      - name: Gom các file cần deploy vào _site (loại bỏ .git, workflow, tài liệu nội bộ)
+        run: |
+          mkdir -p _site
+          rsync -a --exclude='.git' --exclude='.github' --exclude='_site' \
+                --exclude='README.md' --exclude='implementation_plan.md' \
+                ./ _site/
+
+      - name: Đóng gói site để deploy
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "_site"
+
+      - name: Deploy lên GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
