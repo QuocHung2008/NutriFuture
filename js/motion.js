@@ -20,7 +20,7 @@
   }
 
   document.addEventListener('click', (e) => {
-    const target = e.target.closest('.btn, .quick-card, .camera-btn, .desktop-nav__btn');
+    const target = e.target.closest('.btn, .quick-card, .camera-btn, .nav-btn');
     if (!target) return;
     const style = getComputedStyle(target);
     if (style.position === 'static') target.style.position = 'relative';

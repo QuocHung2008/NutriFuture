@@ -22,10 +22,8 @@
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   
-  <!-- Design System CSS -->
+  <!-- Design System CSS (single file — includes layout + motion/effects) -->
   <link rel="stylesheet" href="css/style.css" />
-  <!-- Theme Boost: hiệu ứng, hình khối, tương tác, bố cục desktop -->
-  <link rel="stylesheet" href="css/theme-boost.css" />
 </head>
 <body>
 
@@ -38,7 +36,7 @@
     <div class="bg-decor__blob bg-decor__blob--4"></div>
   </div>
 
-  <!-- App Header -->
+  <!-- App Header (top bar on mobile; spans full width above the sidebar on desktop) -->
   <header id="app-header">
     <div class="header-inner">
       <div class="logo" onclick="location.hash='#home'" title="Về trang chủ">
@@ -49,29 +47,6 @@
           Nutri<span>Future</span>
         </div>
       </div>
-
-      <!-- Desktop navigation (uses the same .nav-btn class as the bottom nav,
-           so js/app.js's existing router/active-state logic drives it too) -->
-      <nav class="desktop-nav" aria-label="Điều hướng (máy tính)">
-        <button class="nav-btn desktop-nav__btn active" data-target="#home" title="Trang chủ">
-          <i class="fa-solid fa-house"></i><span>Trang chủ</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#lookup" title="Tra cứu">
-          <i class="fa-solid fa-magnifying-glass"></i><span>Tra cứu</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#camera" title="Camera AI">
-          <i class="fa-solid fa-camera-retro"></i><span>Camera AI</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#diary" title="Nhật ký">
-          <i class="fa-solid fa-book-open"></i><span>Nhật ký</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#history" title="Lịch sử">
-          <i class="fa-solid fa-chart-pie"></i><span>Báo cáo</span>
-        </button>
-        <button class="nav-btn desktop-nav__btn" data-target="#profile" title="Hồ sơ">
-          <i class="fa-solid fa-user-graduate"></i><span>Hồ sơ</span>
-        </button>
-      </nav>
 
       <div class="header-actions">
         <a href="#history" class="header-date" title="Xem lịch sử & báo cáo" style="display:flex; align-items:center; gap:0.25rem;">
