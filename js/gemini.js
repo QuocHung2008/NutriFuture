@@ -39,8 +39,38 @@ const NF_Gemini = (() => {
 
   const API_VERSIONS = ['v1beta', 'v1'];
 
+  // Danh sách model hiển thị cho người dùng chọn thủ công trong giao diện (Hồ sơ)
+  const MODEL_OPTIONS = [
+    { value: 'auto', label: 'Tự động (khuyên dùng — AI tự chọn model tốt nhất)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash — Cân bằng tốc độ & độ chính xác' },
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite — Nhanh nhất, nhẹ nhất' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro — Chính xác nhất, chậm hơn' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash — Thế hệ trước, ổn định' },
+    { value: 'gemini-flash-latest', label: 'Gemini Flash (mới nhất theo Google)' },
+    { value: 'gemini-pro-latest', label: 'Gemini Pro (mới nhất theo Google)' },
+  ];
+
+  function getSelectedModel() {
+    return localStorage.getItem('nf_selected_model') || 'auto';
+  }
+
+  function setSelectedModel(modelId) {
+    if (!modelId || modelId === 'auto') {
+      localStorage.removeItem('nf_selected_model');
+    } else {
+      localStorage.setItem('nf_selected_model', modelId);
+    }
+    // Xóa cache "model đang hoạt động" để lần gọi tiếp theo dùng đúng lựa chọn mới
+    localStorage.removeItem('nf_working_model');
+    localStorage.removeItem('nf_working_version');
+  }
+
   function getModel() {
-    // Xóa cache cũ nếu không còn hợp lệ với key hiện tại
+    // 1. Ưu tiên tuyệt đối: model người dùng chọn thủ công trong Hồ sơ
+    const selected = getSelectedModel();
+    if (selected && selected !== 'auto') return selected;
+
+    // 2. Chế độ "Tự động": dùng model đã xác nhận hoạt động tốt gần nhất
     const cached = localStorage.getItem('nf_working_model');
     if (cached) return cached;
     if (typeof GEMINI_CONFIG !== 'undefined' && GEMINI_CONFIG.model) {
@@ -422,5 +452,9 @@ CHỈ trả về JSON thuần:
     suggestMealPlan,
     getErrorMessage,
     testConnection,
+    MODEL_OPTIONS,
+    getSelectedModel,
+    setSelectedModel,
+    getModel,
   };
 })();

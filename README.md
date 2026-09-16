@@ -32,34 +32,24 @@ NutriFuture sử dụng API Google Gemini để phân tích hình ảnh và tra 
 
 ---
 
-### Bước 2: Đưa API Key vào ứng dụng (Chọn 1 trong 2 cách)
+### Bước 2: Cấu hình 1 API Key dùng chung — KHÔNG lộ trong mã nguồn (dùng GitHub Actions Secret)
 
-#### Cách 1: Nhập trực tiếp trên giao diện ứng dụng (Đơn giản nhất, khuyên dùng)
-- Mở ứng dụng NutriFuture trên trình duyệt.
-- Vào tab **Hồ sơ** (hoặc bấm nút *"Cần thiết lập API Key Gemini"* tại màn hình Camera AI/Tra cứu).
-- Dán khóa API vào ô **Cài đặt Google Gemini API Key** và bấm **"Lưu Key"**.
-- 🔒 *Khóa sẽ được lưu trữ an toàn trong `localStorage` của trình duyệt bạn và không bị lộ ra ngoài.*
+Phiên bản hiện tại dùng **1 API Key duy nhất do chủ dự án cấu hình**, người dùng cuối **không cần** tự nhập key nữa (mục nhập key trong Hồ sơ/Camera/Tra cứu sẽ tự ẩn). Key được lưu trong **GitHub Secrets** (không nằm trong source code, không nằm trong git history) và chỉ được GitHub Actions "nạp" vào lúc build/deploy lên GitHub Pages.
 
-#### Cách 2: Tạo file `js/config.js` (Dành cho lập trình viên khi chạy local)
-1. Trong thư mục dự án, copy file `js/config.example.js` thành `js/config.js`:
-   ```bash
-   cp js/config.example.js js/config.js
-   ```
-2. Mở file `js/config.js` và dán API Key của bạn vào:
-   ```javascript
-   const GEMINI_CONFIG = {
-     apiKey: 'AIzaSy_THAY_THE_BANG_KEY_THAT_CUA_BAN',
-     apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
-     model: 'gemini-1.5-flash',
-     maxTokens: 2048,
-   };
-   ```
-3. File `js/config.js` đã được cấu hình trong `.gitignore`, đảm bảo **không bao giờ bị đẩy lên GitHub**.
+1. Vào repo trên GitHub → `Settings` → `Secrets and variables` → `Actions` → **New repository secret**.
+2. Đặt tên: `GEMINI_API_KEY`, giá trị: dán API Key thật của bạn (dạng `AIzaSy...`) → **Add secret**.
+3. Vào `Settings` → `Pages` → mục **Build and deployment** → **Source**: đổi từ `Deploy from a branch` sang **`GitHub Actions`**.
+4. Push code (đã kèm sẵn workflow `.github/workflows/deploy.yml` trong dự án) lên nhánh `main`. GitHub Actions sẽ tự động:
+   - Sinh ra `js/config.js` từ `js/config.template.js`, thay `__GEMINI_API_KEY__` bằng giá trị Secret.
+   - Deploy toàn bộ site (đã có key) lên GitHub Pages.
+5. Trong tab **Hồ sơ** của ứng dụng, người dùng có thể chọn model Gemini muốn dùng (Tự động / Flash / Flash-Lite / Pro...) qua ô **Model Gemini sử dụng** — không cần đụng đến key.
+
+📌 **Chạy thử ở máy local?** Copy `js/config.template.js` thành `js/config.js` (đã có trong `.gitignore`, không bao giờ bị commit), thay `__GEMINI_API_KEY__` bằng key thật để test — file này chỉ nằm trên máy bạn.
 
 ---
 
-### 🛡️ Khuyến nghị bảo mật API Key khi Deploy lên GitHub Pages
-Do kiến trúc Static Web App chạy trực tiếp trên trình duyệt, để bảo vệ API Key khỏi việc bị lạm dụng:
+### 🛡️ Lưu ý về rủi ro khi dùng 1 key dùng chung
+Vì đây là Static Web App (không backend), **key vẫn hiển thị được** nếu ai đó mở DevTools/xem Network request trên **trang web đã deploy** — cách trên chỉ ngăn key bị lộ trong **source code trên GitHub** (git history, bot quét repo công khai), chứ không thể giấu key khỏi trình duyệt người xem trang. Với key **miễn phí, chỉ dùng ngắn hạn cho kỳ thi**, đây là mức đánh đổi hợp lý. Nếu muốn giảm rủi ro thêm (không bắt buộc):
 1. Vào [Google Cloud Console - Credentials](https://console.cloud.google.com/apis/credentials).
 2. Nhấp vào khóa API bạn đã tạo.
 3. Tại mục **Set application restrictions**: Chọn **Websites (HTTP referrers)**:
@@ -69,11 +59,11 @@ Do kiến trúc Static Web App chạy trực tiếp trên trình duyệt, để 
 
 ---
 
-## 🌐 Hướng Dẫn Deploy Lên GitHub Pages
+## 🌐 Hướng Dẫn Deploy Lên GitHub Pages (qua GitHub Actions)
 
-Dự án sử dụng công nghệ web tĩnh thuần túy (HTML5, Vanilla CSS, Vanilla JavaScript ES6), không cần cài đặt Node.js hay build phức tạp. Bạn có thể deploy lên GitHub Pages trong 3 phút:
+Dự án sử dụng công nghệ web tĩnh thuần túy (HTML5, Vanilla CSS, Vanilla JavaScript ES6), không cần cài đặt Node.js hay build phức tạp ở máy bạn — toàn bộ được GitHub Actions xử lý.
 
-1. **Khởi tạo và đẩy mã nguồn lên GitHub Repository**:
+1. **Đẩy mã nguồn lên GitHub Repository**:
    ```bash
    git init
    git add .
@@ -83,13 +73,13 @@ Dự án sử dụng công nghệ web tĩnh thuần túy (HTML5, Vanilla CSS, Va
    git push -u origin main
    ```
 
-2. **Kích hoạt GitHub Pages**:
-   - Truy cập vào Repository trên GitHub: `Settings` -> `Pages`.
-   - Tại mục **Build and deployment** -> **Source**: Chọn `Deploy from a branch`.
-   - Tại mục **Branch**: Chọn nhánh `main` và thư mục `/ (root)`.
-   - Bấm **Save**.
+2. **Thiết lập Secret** (xem Bước 2 ở trên): `Settings` → `Secrets and variables` → `Actions` → thêm `GEMINI_API_KEY`.
 
-3. Sau 1-2 phút, trang web sẽ online tại địa chỉ:
+3. **Kích hoạt GitHub Pages qua Actions**:
+   - `Settings` → `Pages` → **Build and deployment** → **Source**: chọn **`GitHub Actions`** (không chọn "Deploy from a branch").
+   - Vào tab `Actions`, chạy lại workflow **"Deploy NutriFuture to GitHub Pages"** nếu nó chưa tự chạy (hoặc push thêm 1 commit bất kỳ để kích hoạt).
+
+4. Sau 1-2 phút, trang web sẽ online tại địa chỉ:
    ```
    https://QuocHung2008.github.io/NutriFuture/
    ```
@@ -114,23 +104,27 @@ Dự án sử dụng công nghệ web tĩnh thuần túy (HTML5, Vanilla CSS, Va
 
 ```
 NutriFuture/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml           # GitHub Actions: nạp GEMINI_API_KEY từ Secret & deploy Pages
 ├── index.html                  # Giao diện chính (SPA Shell, semantic HTML5)
 ├── css/
 │   └── style.css               # Design System Vanilla CSS, tokens & glassmorphism
 ├── js/
-│   ├── config.example.js       # File mẫu cấu hình Gemini API
+│   ├── config.template.js      # Mẫu cấu hình Gemini API (commit lên Git, KHÔNG chứa key thật)
+│   ├── config.js                # Sinh tự động lúc deploy (chứa key thật) — KHÔNG commit, đã trong .gitignore
 │   ├── storage.js              # Quản lý LocalStorage & Xuất/Nhập JSON
-│   ├── gemini.js               # Wrapper gọi Google Gemini 2.0 API (Text & Vision)
+│   ├── gemini.js               # Wrapper gọi Google Gemini API (Text & Vision) + chọn model
 │   ├── ui.js                   # Tiện ích giao diện: Toast, Modal, Skeleton, Format
 │   ├── app.js                  # Điều phối Router Hash & Vòng đời ứng dụng
 │   └── pages/
 │       ├── home.js             # Trang chủ: Tổng quan calo, nước uống, thống kê
 │       ├── camera.js           # Camera AI: Chụp ảnh trực tiếp & phân tích thị giác
 │       ├── lookup.js           # Tra cứu AI: Tìm kiếm món ăn & gợi ý thông minh
-│       ├── profile.js          # Cá nhân hóa: Tính BMI, BMR, TDEE & Tư vấn thực đơn
+│       ├── profile.js          # Cá nhân hóa: BMI/BMR/TDEE, Tư vấn thực đơn, chọn Model Gemini
 │       ├── diary.js            # Nhật ký: Ghi nhận bữa ăn & biểu đồ Macro Doughnut
 │       └── history.js          # Lịch sử: Biểu đồ xu hướng 7 ngày & sao lưu dữ liệu
-├── .gitignore                  # Bỏ qua js/config.js và file tạm hệ thống
+├── .gitignore                  # Bỏ qua js/config.js (key thật) và file tạm hệ thống
 └── README.md                   # Tài liệu hướng dẫn chi tiết
 ```
 
