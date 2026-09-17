@@ -144,10 +144,10 @@ const NF_PageHome = (() => {
                       ${summary.entries.slice(-3).reverse().map(item => `
                         <div class="diary-entry" style="padding:var(--sp-2) var(--sp-3);">
                           <div class="diary-entry__info">
-                            <div class="diary-entry__name">${item.name}</div>
+                            <div class="diary-entry__name">${NF_UI.escapeHtml(item.name)}</div>
                             <div class="diary-entry__meta">
                               <span class="diary-entry__meal-tag">${NF_UI.getMealIcon(item.mealType)} ${item.mealType || 'Bữa ăn'}</span>
-                              <span>${item.serving || ''}</span>
+                              <span>${NF_UI.escapeHtml(item.serving || '')}</span>
                             </div>
                           </div>
                           <div class="diary-entry__cal">${item.calories} kcal</div>

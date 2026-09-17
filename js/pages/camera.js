@@ -269,6 +269,18 @@ const NF_PageCamera = (() => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
 
+      // Chặn sớm file quá lớn (ảnh RAW/HEIC gốc vài chục MB) TRƯỚC khi đọc vào bộ nhớ
+      // qua FileReader — tránh treo trình duyệt trên máy yếu/điện thoại cũ.
+      const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
+      if (file.size > MAX_UPLOAD_BYTES) {
+        NF_UI.showToast(
+          `Ảnh quá lớn (${(file.size / 1024 / 1024).toFixed(1)}MB). Vui lòng chọn ảnh dưới 20MB.`,
+          'warning'
+        );
+        fileInput.value = '';
+        return;
+      }
+
       stopCameraStreamOnly();
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -365,7 +377,7 @@ const NF_PageCamera = (() => {
       lastAnalysisResult = data;
       scannerOverlay.classList.add('hidden');
       renderResult(resultBox, data);
-      NF_UI.showToast(`Đã nhận diện thành công: ${data.name}!`, 'success');
+      NF_UI.showToast(`Đã nhận diện thành công: ${NF_UI.escapeHtml(data.name)}!`, 'success');
     } catch (err) {
       console.error('Analyze error:', err);
       scannerOverlay.classList.add('hidden');
@@ -405,9 +417,9 @@ const NF_PageCamera = (() => {
             <span class="result-card__badge">
               <i class="fa-solid fa-sparkles"></i> AI Phân Tích
             </span>
-            <h2 class="result-card__name" style="margin-top:0.25rem;">${data.name}</h2>
+            <h2 class="result-card__name" style="margin-top:0.25rem;">${NF_UI.escapeHtml(data.name)}</h2>
             <div class="result-card__serving">
-              <i class="fa-solid fa-bowl-food"></i> Khẩu phần: ${data.serving}
+              <i class="fa-solid fa-bowl-food"></i> Khẩu phần: ${NF_UI.escapeHtml(data.serving)}
             </div>
           </div>
           <div style="text-align:right;">
@@ -440,22 +452,22 @@ const NF_PageCamera = (() => {
         <div style="display:flex; flex-direction:column; gap:var(--sp-2); margin-bottom:var(--sp-3);">
           ${data.foodGroup ? `
             <div class="text-xs text-muted" style="overflow-wrap:break-word;">
-              <strong>Nhóm thực phẩm:</strong> ${data.foodGroup}
+              <strong>Nhóm thực phẩm:</strong> ${NF_UI.escapeHtml(data.foodGroup)}
             </div>
           ` : ''}
 
           ${(data.vitamins && data.vitamins.length > 0) || (data.minerals && data.minerals.length > 0) ? `
             <div class="micro-info">
               <i class="fa-solid fa-apple-whole"></i>
-              ${data.vitamins && data.vitamins.length ? `<strong>Vitamin:</strong> ${data.vitamins.join(', ')}. ` : ''}
-              ${data.minerals && data.minerals.length ? `<strong>Khoáng chất:</strong> ${data.minerals.join(', ')}.` : ''}
+              ${data.vitamins && data.vitamins.length ? `<strong>Vitamin:</strong> ${NF_UI.escapeHtml(data.vitamins.join(', '))}. ` : ''}
+              ${data.minerals && data.minerals.length ? `<strong>Khoáng chất:</strong> ${NF_UI.escapeHtml(data.minerals.join(', '))}.` : ''}
             </div>
           ` : ''}
 
           ${data.advice ? `
             <div class="advice-box advice-box--success">
               <i class="fa-solid fa-lightbulb"></i>
-              <strong>Lời khuyên học đường:</strong> ${data.advice}
+              <strong>Lời khuyên học đường:</strong> ${NF_UI.escapeHtml(data.advice)}
             </div>
           ` : ''}
         </div>
@@ -500,7 +512,7 @@ const NF_PageCamera = (() => {
         };
 
         NF_Storage.addDiaryEntry(entry, NF_Storage.getToday());
-        NF_UI.showToast(`Đã lưu "${data.name}" vào ${mealType} hôm nay!`, 'success');
+        NF_UI.showToast(`Đã lưu "${NF_UI.escapeHtml(data.name)}" vào ${mealType} hôm nay!`, 'success');
         btnSave.disabled = true;
         btnSave.innerHTML = '<i class="fa-solid fa-check"></i> Đã lưu';
       };

@@ -203,6 +203,24 @@ const NF_UI = (() => {
     return map[type] || '🍽️';
   }
 
+  /**
+   * Escape HTML — BẮT BUỘC dùng cho mọi dữ liệu không đáng tin cậy trước khi
+   * chèn vào innerHTML: nội dung người dùng tự gõ (ô tìm kiếm...) VÀ nội dung
+   * do Gemini AI trả về (tên món ăn, lời khuyên...). AI có thể vô tình hoặc bị
+   * "prompt injection" trả về text chứa thẻ HTML/script — nếu không escape,
+   * nội dung đó sẽ được trình duyệt thực thi như mã thật (XSS), kể cả khi đã
+   * được lưu vào localStorage (lịch sử tra cứu, nhật ký) và chạy lại mỗi lần mở app.
+   */
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   /* ─── Dark / Light Theme Toggle ─── */
 
   const THEME_KEY = 'nf_theme';
@@ -260,6 +278,7 @@ const NF_UI = (() => {
     confirm,
     getBMIClass,
     getMealIcon,
+    escapeHtml,
     getTheme,
     setTheme,
     toggleTheme,

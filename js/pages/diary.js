@@ -227,9 +227,9 @@ const NF_PageDiary = (() => {
             ${meals.length > 0 ? meals.map(item => `
               <div class="diary-entry">
                 <div class="diary-entry__info">
-                  <div class="diary-entry__name">${item.name}</div>
+                  <div class="diary-entry__name">${NF_UI.escapeHtml(item.name)}</div>
                   <div class="diary-entry__meta">
-                    <span>${item.serving || '1 phần'}</span>
+                    <span>${NF_UI.escapeHtml(item.serving || '1 phần')}</span>
                     <span>•</span>
                     <span>C: ${item.carb || 0}g</span>
                     <span>P: ${item.protein || 0}g</span>

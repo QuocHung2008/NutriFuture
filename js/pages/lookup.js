@@ -100,8 +100,8 @@ const NF_PageLookup = (() => {
               ${history.length > 0 ? history.map((item, idx) => `
                 <div class="lookup-history__item" data-idx="${idx}">
                   <div>
-                    <div style="font-weight:700; color:var(--slate-900);">${item.name}</div>
-                    <div class="text-xs text-muted">${item.serving || '1 phần'} • ${item.foodGroup || 'Dinh dưỡng'}</div>
+                    <div style="font-weight:700; color:var(--slate-900);">${NF_UI.escapeHtml(item.name)}</div>
+                    <div class="text-xs text-muted">${NF_UI.escapeHtml(item.serving || '1 phần')} • ${NF_UI.escapeHtml(item.foodGroup || 'Dinh dưỡng')}</div>
                   </div>
                   <div style="text-align:right;">
                     <div style="font-weight:800; color:var(--primary-700);">${item.calories} kcal</div>
@@ -156,7 +156,7 @@ const NF_PageLookup = (() => {
       resultArea.innerHTML = `
         <div class="loading-container">
           <div class="loading-spinner"></div>
-          <p class="loading-text">Gemini AI đang tra cứu dữ liệu dinh dưỡng cho "${q}"...</p>
+          <p class="loading-text">Gemini AI đang tra cứu dữ liệu dinh dưỡng cho "${NF_UI.escapeHtml(q)}"...</p>
         </div>
       `;
 
@@ -168,7 +168,7 @@ const NF_PageLookup = (() => {
 
         // Lưu vào history
         NF_Storage.addLookupHistory(data);
-        NF_UI.showToast(`Đã tìm thấy thông tin cho "${data.name}"`, 'success');
+        NF_UI.showToast(`Đã tìm thấy thông tin cho "${NF_UI.escapeHtml(data.name)}"`, 'success');
       } catch (err) {
         console.error('Search error:', err);
         NF_UI.hideInlineLoading(btnSubmit);
@@ -242,9 +242,9 @@ const NF_PageLookup = (() => {
             <span class="result-card__badge" style="background:var(--blue-50); color:var(--blue-700); border-color:var(--blue-200);">
               <i class="fa-solid fa-sparkles"></i> Dữ liệu Gemini AI
             </span>
-            <h2 class="result-card__name" style="margin-top:0.25rem;">${data.name}</h2>
+            <h2 class="result-card__name" style="margin-top:0.25rem;">${NF_UI.escapeHtml(data.name)}</h2>
             <div class="result-card__serving">
-              <i class="fa-solid fa-bowl-food"></i> Khẩu phần: ${data.serving}
+              <i class="fa-solid fa-bowl-food"></i> Khẩu phần: ${NF_UI.escapeHtml(data.serving)}
             </div>
           </div>
           <div style="text-align:right;">
@@ -277,22 +277,22 @@ const NF_PageLookup = (() => {
         <div style="display:flex; flex-direction:column; gap:var(--sp-2); margin-bottom:var(--sp-3);">
           ${data.foodGroup ? `
             <div class="text-xs text-muted">
-              <strong>Nhóm thực phẩm:</strong> ${data.foodGroup}
+              <strong>Nhóm thực phẩm:</strong> ${NF_UI.escapeHtml(data.foodGroup)}
             </div>
           ` : ''}
 
           ${(data.vitamins && data.vitamins.length > 0) || (data.minerals && data.minerals.length > 0) ? `
             <div class="micro-info">
               <i class="fa-solid fa-apple-whole"></i>
-              ${data.vitamins && data.vitamins.length ? `<strong>Vitamin:</strong> ${data.vitamins.join(', ')}. ` : ''}
-              ${data.minerals && data.minerals.length ? `<strong>Khoáng chất:</strong> ${data.minerals.join(', ')}.` : ''}
+              ${data.vitamins && data.vitamins.length ? `<strong>Vitamin:</strong> ${NF_UI.escapeHtml(data.vitamins.join(', '))}. ` : ''}
+              ${data.minerals && data.minerals.length ? `<strong>Khoáng chất:</strong> ${NF_UI.escapeHtml(data.minerals.join(', '))}.` : ''}
             </div>
           ` : ''}
 
           ${data.advice ? `
             <div class="advice-box advice-box--success">
               <i class="fa-solid fa-lightbulb"></i>
-              <strong>Lời khuyên cho học sinh:</strong> ${data.advice}
+              <strong>Lời khuyên cho học sinh:</strong> ${NF_UI.escapeHtml(data.advice)}
             </div>
           ` : ''}
         </div>
@@ -337,7 +337,7 @@ const NF_PageLookup = (() => {
         };
 
         NF_Storage.addDiaryEntry(entry, NF_Storage.getToday());
-        NF_UI.showToast(`Đã lưu "${data.name}" vào ${mealType} hôm nay!`, 'success');
+        NF_UI.showToast(`Đã lưu "${NF_UI.escapeHtml(data.name)}" vào ${mealType} hôm nay!`, 'success');
         btnSave.disabled = true;
         btnSave.innerHTML = '<i class="fa-solid fa-check"></i> Đã lưu';
       };

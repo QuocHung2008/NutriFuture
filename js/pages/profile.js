@@ -98,7 +98,7 @@ const NF_PageProfile = (() => {
                 <div>
                   <label class="card__label" for="prof-name">HỌ VÀ TÊN</label>
                   <input type="text" id="prof-name" class="search-bar__input" 
-                         value="${profile.name || ''}" placeholder="Ví dụ: Nguyễn Văn A" style="padding-left:var(--sp-3);" />
+                         value="${NF_UI.escapeHtml(profile.name || '')}" placeholder="Ví dụ: Nguyễn Văn A" style="padding-left:var(--sp-3);" />
                 </div>
                 <div>
                   <label class="card__label" for="prof-gender">GIỚI TÍNH</label>
@@ -566,7 +566,7 @@ const NF_PageProfile = (() => {
     targetEl.innerHTML = `
       <div style="animation:fadeIn var(--duration-normal) var(--ease-out); display:flex; flex-direction:column; gap:var(--sp-3);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h4 style="font-size:var(--fs-md); font-weight:800; color:var(--slate-900);">${plan.planName}</h4>
+          <h4 style="font-size:var(--fs-md); font-weight:800; color:var(--slate-900);">${NF_UI.escapeHtml(plan.planName)}</h4>
           <span class="tag tag--primary">${plan.totalCalories} kcal</span>
         </div>
 
@@ -576,11 +576,11 @@ const NF_PageProfile = (() => {
               <span class="meal-plan-card__type">${NF_UI.getMealIcon(m.type)} ${m.type}</span>
               <span class="meal-plan-card__cal">${m.calories} kcal</span>
             </div>
-            <div class="meal-plan-card__name">${m.name}</div>
+            <div class="meal-plan-card__name">${NF_UI.escapeHtml(m.name)}</div>
             <div class="meal-plan-card__macros">
               Carb: ${m.carb}g • Protein: ${m.protein}g • Fat: ${m.fat}g
             </div>
-            ${m.description ? `<div class="meal-plan-card__desc">${m.description}</div>` : ''}
+            ${m.description ? `<div class="meal-plan-card__desc">${NF_UI.escapeHtml(m.description)}</div>` : ''}
             <button class="btn btn--outline btn--sm btn-add-plan-meal" data-idx="${idx}" 
                     style="margin-top:var(--sp-2); font-size:var(--fs-xs); background:var(--white); padding:0.25rem 0.5rem;">
               <i class="fa-solid fa-plus"></i> Thêm vào nhật ký hôm nay
@@ -591,7 +591,7 @@ const NF_PageProfile = (() => {
         ${plan.advice ? `
           <div class="advice-box advice-box--success">
             <i class="fa-solid fa-lightbulb"></i>
-            <strong>Lời khuyên từ AI:</strong> ${plan.advice}
+            <strong>Lời khuyên từ AI:</strong> ${NF_UI.escapeHtml(plan.advice)}
           </div>
         ` : ''}
       </div>
@@ -619,7 +619,7 @@ const NF_PageProfile = (() => {
         };
 
         NF_Storage.addDiaryEntry(entry, NF_Storage.getToday());
-        NF_UI.showToast(`Đã thêm "${m.name}" (${m.type}) vào nhật ký!`, 'success');
+        NF_UI.showToast(`Đã thêm "${NF_UI.escapeHtml(m.name)}" (${m.type}) vào nhật ký!`, 'success');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-check"></i> Đã thêm';
       };

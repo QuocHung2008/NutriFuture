@@ -64,6 +64,27 @@ Phiên bản hiện tại dùng **1 API Key duy nhất do chủ dự án cấu h
 5. Theo dõi mục **Kiểm tra kết nối** trong tab Hồ sơ định kỳ trong những ngày thi — nếu thấy lỗi 429 (hết hạn mức) bất thường dù bạn không dùng nhiều, khả năng cao key đã bị người khác lấy được từ DevTools — hãy **thu hồi (Delete) key cũ và tạo key mới** ngay tại Google AI Studio, sau đó cập nhật lại Secret `GEMINI_API_KEY` trên GitHub.
 6. Ứng dụng đã tự giới hạn tối đa 3 lần thử model dự phòng (thay vì 22 lần) khi gặp lỗi, kèm nghỉ giữa các lần thử khi bị 429 — giúp không "đốt" quota nhanh hơn mức cần thiết ngay cả khi key hết hạn mức.
 
+> **Về việc giấu key qua backend/proxy riêng (Cloudflare Worker, Vercel Function...):** đây là cách "đúng" duy nhất để key thực sự không lộ ra trình duyệt. Dự án hiện **cố tình không dùng** cách này để giữ kiến trúc 100% GitHub (Pages + Actions), không phụ thuộc dịch vụ thứ ba nào khác — phù hợp mục tiêu thi ngắn hạn. Nếu muốn triển khai, đây là điểm cần bàn kỹ trước (đổi kiến trúc, thêm dịch vụ ngoài GitHub) chứ không phải một bản vá nhỏ.
+
+### 🔒 Chống XSS (Cross-Site Scripting)
+
+Toàn bộ dữ liệu không đáng tin cậy — nội dung người dùng gõ (ô tìm kiếm, hồ sơ cá nhân) và dữ liệu do Gemini AI trả về (tên món ăn, lời khuyên, thực đơn...) — đều được escape qua `NF_UI.escapeHtml()` trước khi chèn vào giao diện, kể cả khi đã lưu vào `localStorage` (lịch sử tra cứu, nhật ký) và hiển thị lại ở lần mở app sau. Đây là lớp phòng thủ chính chống XSS của ứng dụng.
+
+Đã thêm **Content-Security-Policy** trong `index.html` để giới hạn script/style/font/ảnh/kết nối mạng chỉ tới các nguồn đã biết trước. Lưu ý quan trọng: CSP này vẫn phải bật `'unsafe-inline'` cho `script-src` vì giao diện dùng thuộc tính `onclick="..."` trực tiếp trong HTML ở rất nhiều nơi — nên **không** chặn được việc một payload XSS thực thi qua thuộc tính inline; lớp phòng thủ thật sự nằm ở việc escape dữ liệu nói trên. Giá trị của CSP ở đây là chặn **exfiltration**: dù có payload chạy được, nó cũng không tải được script từ domain lạ hay gửi dữ liệu ra ngoài qua domain không nằm trong `connect-src`/`img-src`.
+
+**Chưa làm — cần tự bổ sung nếu muốn:** Subresource Integrity (SRI) cho Chart.js. Font Awesome đã có `integrity="..."` sẵn, nhưng Chart.js (tải từ `cdn.jsdelivr.net`) thì chưa, vì môi trường tạo bản vá này không truy cập được `jsdelivr.net` để tính hash chính xác — **dán liều một hash sai sẽ khiến Chart.js không tải được, hỏng cả trang Nhật ký/Lịch sử**, nên mình để trống thay vì đoán. Tự làm theo 2 bước:
+```bash
+# 1. Tải file và tính hash SHA-384 (chạy trên máy bạn, có mạng ra ngoài)
+curl -s https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js -o chart.umd.min.js
+openssl dgst -sha384 -binary chart.umd.min.js | openssl base64 -A
+```
+```html
+<!-- 2. Dán kết quả vào index.html, thay thế thẻ <script> hiện tại của Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
+        integrity="sha384-<KẾT QUẢ Ở BƯỚC 1>"
+        crossorigin="anonymous"></script>
+```
+
 ---
 
 ## 🌐 Hướng Dẫn Deploy Lên GitHub Pages
