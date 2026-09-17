@@ -62,7 +62,7 @@ const NF_PageHome = (() => {
 
               <!-- 1. Calorie Overview Card (quan trọng nhất) -->
               <div class="card card--glass">
-                <div class="card__label">HÔM NAY • ${NF_UI.formatDate(todayStr)}</div>
+                <div class="card__label">Tổng quan năng lượng • ${NF_UI.formatDate(todayStr)}</div>
                 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:var(--sp-2); flex-wrap:wrap; gap:var(--sp-2);">
                   <div>
                     <span class="stat-card__value" id="home-cal-val">${NF_UI.formatNumber(consumedCal)}</span>
