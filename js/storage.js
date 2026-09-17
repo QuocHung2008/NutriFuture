@@ -12,6 +12,8 @@ const NF_Storage = (() => {
     WATER_PREFIX: 'nf_water_',
     LOOKUP_HISTORY: 'nf_lookup_history',
     ONBOARDED: 'nf_onboarded',
+    DIARY_INDEX: 'nf_diary_dates_index',
+    WATER_INDEX: 'nf_water_dates_index',
   };
 
   /* ─── Helpers ─── */
@@ -65,6 +67,56 @@ const NF_Storage = (() => {
     localStorage.setItem(KEYS.ONBOARDED, 'true');
   }
 
+  /**
+   * Index các ngày có dữ liệu (diary/water), tránh phải duyệt tuyến tính toàn bộ
+   * localStorage mỗi lần gọi getAllDiaryDates()/exportAll() — quan trọng khi dùng
+   * app lâu dài qua nhiều tháng thi, số lượng ngày lưu trữ sẽ tăng dần.
+   * Tự "rebuild" 1 lần duy nhất nếu người dùng nâng cấp từ bản chưa có index.
+   */
+  function _getIndex(indexKey, prefix, isNonEmpty) {
+    const idx = _get(indexKey);
+    if (idx && Array.isArray(idx)) return idx;
+    return _rebuildIndex(indexKey, prefix, isNonEmpty);
+  }
+
+  function _rebuildIndex(indexKey, prefix, isNonEmpty) {
+    const dates = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        const date = key.replace(prefix, '');
+        if (isNonEmpty(key)) dates.push(date);
+      }
+    }
+    dates.sort();
+    _set(indexKey, dates);
+    return dates;
+  }
+
+  function _updateIndex(indexKey, prefix, isNonEmpty, date) {
+    const idx = _getIndex(indexKey, prefix, isNonEmpty);
+    const pos = idx.indexOf(date);
+    const shouldBeIn = isNonEmpty(prefix + date);
+
+    if (shouldBeIn && pos === -1) {
+      idx.push(date);
+      idx.sort();
+      _set(indexKey, idx);
+    } else if (!shouldBeIn && pos !== -1) {
+      idx.splice(pos, 1);
+      _set(indexKey, idx);
+    }
+  }
+
+  function _diaryIndexPredicate(key) {
+    const entries = _get(key);
+    return Array.isArray(entries) && entries.length > 0;
+  }
+
+  function _waterIndexPredicate(key) {
+    return (parseFloat(localStorage.getItem(key)) || 0) > 0;
+  }
+
   /* ─── Diary (theo ngày) ─── */
 
   function getDiary(date) {
@@ -73,8 +125,10 @@ const NF_Storage = (() => {
   }
 
   function saveDiary(date, entries) {
-    const key = KEYS.DIARY_PREFIX + _dateKey(date);
+    const dateStr = _dateKey(date);
+    const key = KEYS.DIARY_PREFIX + dateStr;
     _set(key, entries);
+    _updateIndex(KEYS.DIARY_INDEX, KEYS.DIARY_PREFIX, _diaryIndexPredicate, dateStr);
   }
 
   function addDiaryEntry(entry, date) {
@@ -103,16 +157,20 @@ const NF_Storage = (() => {
 
   function addWater(amountMl, date) {
     const d = date || new Date();
-    const key = KEYS.WATER_PREFIX + _dateKey(d);
+    const dateStr = _dateKey(d);
+    const key = KEYS.WATER_PREFIX + dateStr;
     const current = getWater(d);
     const newVal = current + amountMl;
     localStorage.setItem(key, String(newVal));
+    _updateIndex(KEYS.WATER_INDEX, KEYS.WATER_PREFIX, _waterIndexPredicate, dateStr);
     return newVal;
   }
 
   function setWater(amountMl, date) {
-    const key = KEYS.WATER_PREFIX + _dateKey(date || new Date());
+    const dateStr = _dateKey(date || new Date());
+    const key = KEYS.WATER_PREFIX + dateStr;
     localStorage.setItem(key, String(amountMl));
+    _updateIndex(KEYS.WATER_INDEX, KEYS.WATER_PREFIX, _waterIndexPredicate, dateStr);
   }
 
   /* ─── Lookup History ─── */
@@ -129,17 +187,10 @@ const NF_Storage = (() => {
     _set(KEYS.LOOKUP_HISTORY, history);
   }
 
-  /* ─── Lấy tất cả ngày có dữ liệu diary ─── */
+  /* ─── Lấy tất cả ngày có dữ liệu diary (đọc từ index — O(1) thay vì quét toàn bộ localStorage) ─── */
 
   function getAllDiaryDates() {
-    const dates = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(KEYS.DIARY_PREFIX)) {
-        dates.push(key.replace(KEYS.DIARY_PREFIX, ''));
-      }
-    }
-    return dates.sort().reverse();
+    return _getIndex(KEYS.DIARY_INDEX, KEYS.DIARY_PREFIX, _diaryIndexPredicate).slice().sort().reverse();
   }
 
   /* ─── Diary summary cho 1 ngày ─── */
@@ -181,18 +232,14 @@ const NF_Storage = (() => {
       water: {}
     };
 
-    // Thu thập tất cả diary entries
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(KEYS.DIARY_PREFIX)) {
-        const date = key.replace(KEYS.DIARY_PREFIX, '');
-        data.diary[date] = _get(key);
-      }
-      if (key && key.startsWith(KEYS.WATER_PREFIX)) {
-        const date = key.replace(KEYS.WATER_PREFIX, '');
-        data.water[date] = parseFloat(localStorage.getItem(key)) || 0;
-      }
-    }
+    // Đọc từ index thay vì quét toàn bộ localStorage — nhanh hơn nhiều khi dữ liệu
+    // đã tích lũy qua nhiều tháng thi.
+    _getIndex(KEYS.DIARY_INDEX, KEYS.DIARY_PREFIX, _diaryIndexPredicate).forEach((date) => {
+      data.diary[date] = getDiary(date);
+    });
+    _getIndex(KEYS.WATER_INDEX, KEYS.WATER_PREFIX, _waterIndexPredicate).forEach((date) => {
+      data.water[date] = getWater(date);
+    });
 
     return data;
   }

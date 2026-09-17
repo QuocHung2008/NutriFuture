@@ -1,17 +1,21 @@
 /**
  * NutriFuture — Diary Page (Nhật ký dinh dưỡng)
  * Theo dõi chi tiết các bữa ăn theo ngày, tính tổng calo và cân đối 3 nhóm đa lượng
+ *
+ * Tối ưu hiệu suất: khung trang (renderShell) chỉ dựng 1 lần khi vào trang.
+ * Các thao tác đổi ngày / thêm / xóa món chỉ gọi refresh() để cập nhật đúng phần
+ * dữ liệu thay đổi (text, chart.update()) — không innerHTML lại toàn bộ trang và
+ * không destroy/recreate Chart.js mỗi lần, tránh giật trên máy yếu.
  */
 const NF_PageDiary = (() => {
   'use strict';
 
   let selectedDate = null;
   let macroChartInstance = null;
+  let currentContainer = null;
 
-  /**
-   * Cảnh báo tức thời so với TDEE — nổi bật khía cạnh "tư vấn" của ứng dụng.
-   * Ngưỡng: vượt >10% TDEE → cảnh báo dư; thiếu >30% TDEE → nhắc bổ sung; còn lại → cân đối.
-   */
+  const mealTypes = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
+
   function getTdeeAdvice(consumed, tdee) {
     if (!tdee || tdee <= 0) return null;
 
@@ -33,7 +37,7 @@ const NF_PageDiary = (() => {
         html: `Bạn còn thiếu <strong>${Math.round(Math.abs(diff))} kcal</strong> so với mục tiêu TDEE (${tdee} kcal) hôm nay. Đừng bỏ bữa để đảm bảo đủ năng lượng học tập!`,
       };
     }
-    if (consumed === 0) return null; // Chưa ghi món nào thì chưa cần đưa ra nhận định
+    if (consumed === 0) return null;
 
     return {
       type: 'success',
@@ -42,14 +46,11 @@ const NF_PageDiary = (() => {
     };
   }
 
-  function render(container, date = null) {
-    selectedDate = date || selectedDate || NF_Storage.getToday();
-    const profile = NF_Storage.getProfile() || {};
-    const tdee = profile.tdee || 2000;
-    const summary = NF_Storage.getDiarySummary(selectedDate);
-    const tdeeAdvice = getTdeeAdvice(summary.totalCalories, tdee);
+  /* ─── Khung trang: chỉ dựng 1 lần khi vào trang / đổi trang ─── */
 
-    const mealTypes = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
+  function render(container, date = null) {
+    currentContainer = container;
+    selectedDate = date || selectedDate || NF_Storage.getToday();
 
     container.innerHTML = `
       <div class="page page--diary">
@@ -66,10 +67,10 @@ const NF_PageDiary = (() => {
               <button class="btn btn--outline btn--sm" id="btn-prev-day" title="Ngày trước">
                 <i class="fa-solid fa-chevron-left"></i>
               </button>
-              
+
               <div style="display:flex; align-items:center; gap:var(--sp-2);">
                 <i class="fa-solid fa-calendar-day" style="color:var(--primary-600);"></i>
-                <input type="date" id="diary-date-picker" value="${selectedDate}" 
+                <input type="date" id="diary-date-picker" value="${selectedDate}"
                        style="border:1px solid var(--slate-300); border-radius:var(--radius-md); padding:0.375rem 0.5rem; font-family:var(--font-family); font-weight:700; font-size:var(--fs-sm);" />
               </div>
 
@@ -86,15 +87,13 @@ const NF_PageDiary = (() => {
               <div class="card card--glass">
             <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:var(--sp-3);">
               <div>
-                <div class="card__label">${NF_UI.formatDate(selectedDate).toUpperCase()}</div>
+                <div class="card__label" id="diary-date-label"></div>
                 <div style="display:flex; align-items:baseline; gap:0.25rem;">
-                  <span class="stat-card__value" id="diary-total-cal">${summary.totalCalories}</span>
-                  <span class="stat-card__unit">/ ${tdee} kcal</span>
+                  <span class="stat-card__value" id="diary-total-cal">0</span>
+                  <span class="stat-card__unit" id="diary-tdee-unit"></span>
                 </div>
               </div>
-              <span class="tag ${summary.totalCalories > tdee ? 'tag--amber' : 'tag--primary'}">
-                ${Math.round((summary.totalCalories / tdee) * 100)}% TDEE
-              </span>
+              <span class="tag" id="diary-tdee-tag"></span>
             </div>
 
             <!-- Canvas Chart Container -->
@@ -104,29 +103,24 @@ const NF_PageDiary = (() => {
               </div>
             </div>
 
-            ${tdeeAdvice ? `
-              <div class="advice-box advice-box--${tdeeAdvice.type}" style="margin-bottom:var(--sp-3);">
-                <i class="fa-solid ${tdeeAdvice.icon}"></i>
-                ${tdeeAdvice.html}
-              </div>
-            ` : ''}
+            <div id="diary-tdee-advice"></div>
 
             <!-- Macro Legend Breakdown -->
             <div class="chart-legend">
               <div class="chart-legend__item chart-legend__item--carb">
                 <span class="chart-legend__label">Carb (Bột đường)</span>
-                <span class="chart-legend__value">${summary.totalCarb}g</span>
-                <span class="text-xs text-muted" style="display:block; font-size:0.625rem;">${Math.round(summary.totalCarb * 4)} kcal</span>
+                <span class="chart-legend__value" id="diary-carb-val">0g</span>
+                <span class="text-xs text-muted" id="diary-carb-kcal" style="display:block; font-size:0.625rem;">0 kcal</span>
               </div>
               <div class="chart-legend__item chart-legend__item--protein">
                 <span class="chart-legend__label">Protein (Đạm)</span>
-                <span class="chart-legend__value">${summary.totalProtein}g</span>
-                <span class="text-xs text-muted" style="display:block; font-size:0.625rem;">${Math.round(summary.totalProtein * 4)} kcal</span>
+                <span class="chart-legend__value" id="diary-protein-val">0g</span>
+                <span class="text-xs text-muted" id="diary-protein-kcal" style="display:block; font-size:0.625rem;">0 kcal</span>
               </div>
               <div class="chart-legend__item chart-legend__item--fat">
                 <span class="chart-legend__label">Fat (Chất béo)</span>
-                <span class="chart-legend__value">${summary.totalFat}g</span>
-                <span class="text-xs text-muted" style="display:block; font-size:0.625rem;">${Math.round(summary.totalFat * 9)} kcal</span>
+                <span class="chart-legend__value" id="diary-fat-val">0g</span>
+                <span class="text-xs text-muted" id="diary-fat-kcal" style="display:block; font-size:0.625rem;">0 kcal</span>
               </div>
             </div>
           </div>
@@ -145,148 +139,123 @@ const NF_PageDiary = (() => {
 
             <!-- Cột phải: Danh sách bữa ăn -->
             <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
-              <!-- Meals Grouped by Type -->
-              <div id="diary-meals-container" style="display:flex; flex-direction:column; gap:var(--sp-3);">
-            ${mealTypes.map(type => {
-              const meals = (summary.entries || []).filter(e => e.mealType === type);
-              const mealCal = meals.reduce((sum, item) => sum + (item.calories || 0), 0);
-
-              return `
-                <div class="card" style="padding:var(--sp-3);">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-2);">
-                    <div style="font-weight:800; font-size:var(--fs-md); color:var(--slate-800);">
-                      ${NF_UI.getMealIcon(type)} ${type}
-                      <span class="text-xs text-muted" style="font-weight:600; margin-left:0.25rem;">(${meals.length} món)</span>
-                    </div>
-                    <span class="tag tag--primary" style="font-size:var(--fs-xs);">${mealCal} kcal</span>
-                  </div>
-
-                  <div style="display:flex; flex-direction:column; gap:var(--sp-2);">
-                    ${meals.length > 0 ? meals.map(item => `
-                      <div class="diary-entry">
-                        <div class="diary-entry__info">
-                          <div class="diary-entry__name">${item.name}</div>
-                          <div class="diary-entry__meta">
-                            <span>${item.serving || '1 phần'}</span>
-                            <span>•</span>
-                            <span>C: ${item.carb || 0}g</span>
-                            <span>P: ${item.protein || 0}g</span>
-                            <span>F: ${item.fat || 0}g</span>
-                            ${item.time ? `<span>• ${item.time}</span>` : ''}
-                          </div>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:var(--sp-2);">
-                          <div class="diary-entry__cal">${item.calories} kcal</div>
-                          <button class="diary-entry__delete btn-delete-entry" data-id="${item.id}" title="Xóa món này">
-                            <i class="fa-solid fa-trash-can"></i>
-                          </button>
-                        </div>
-                      </div>
-                    `).join('') : `
-                      <div style="padding:var(--sp-2) 0; color:var(--slate-400); font-size:var(--fs-xs); font-style:italic;">
-                        Chưa có món nào cho ${type}.
-                      </div>
-                    `}
-                  </div>
-                </div>
-              `;
-            }).join('')}
-              </div>
+              <div id="diary-meals-container" style="display:flex; flex-direction:column; gap:var(--sp-3);"></div>
             </div> <!-- Close right column -->
           </div> <!-- Close grid-2-desktop -->
         </div>
       </div>
     `;
 
-    setupEvents(container);
-    renderMacroChart(summary);
+    bindShellEvents(container);
+    refresh();
   }
 
-  function renderMacroChart(summary) {
-    const canvas = document.getElementById('diary-macro-chart');
-    if (!canvas) return;
+  /* ─── Cập nhật dữ liệu động (KHÔNG innerHTML lại toàn trang) ─── */
 
-    if (macroChartInstance) {
-      macroChartInstance.destroy();
-      macroChartInstance = null;
-    }
+  function refresh() {
+    const container = currentContainer;
+    if (!container) return;
 
-    const c = summary.totalCarb || 0;
-    const p = summary.totalProtein || 0;
-    const f = summary.totalFat || 0;
-    const hasData = (c + p + f) > 0;
+    const profile = NF_Storage.getProfile() || {};
+    const tdee = profile.tdee || 2000;
+    const summary = NF_Storage.getDiarySummary(selectedDate);
+    const tdeeAdvice = getTdeeAdvice(summary.totalCalories, tdee);
 
-    const dataValues = hasData ? [c, p, f] : [1, 1, 1];
-    const dataColors = hasData 
-      ? ['#3b82f6', '#10b981', '#f59e0b']
-      : ['#e2e8f0', '#e2e8f0', '#e2e8f0'];
-
-    if (typeof Chart !== 'undefined') {
-      const ctx = canvas.getContext('2d');
-      macroChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Carb (g)', 'Protein (g)', 'Fat (g)'],
-          datasets: [{
-            data: dataValues,
-            backgroundColor: dataColors,
-            borderWidth: 2,
-            borderColor: '#ffffff',
-            hoverOffset: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '72%',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              enabled: hasData,
-              callbacks: {
-                label: (ctx) => ` ${ctx.label}: ${ctx.raw}g`
-              }
-            }
-          }
-        }
-      });
-    }
-  }
-
-  function setupEvents(container) {
+    // Date picker + label
     const datePicker = container.querySelector('#diary-date-picker');
-    const btnPrev = container.querySelector('#btn-prev-day');
-    const btnNext = container.querySelector('#btn-next-day');
-    const btnManualAdd = container.querySelector('#btn-open-manual-add');
+    if (datePicker) datePicker.value = selectedDate;
+    const dateLabel = container.querySelector('#diary-date-label');
+    if (dateLabel) dateLabel.textContent = NF_UI.formatDate(selectedDate).toUpperCase();
 
-    datePicker.onchange = (e) => {
-      selectedDate = e.target.value;
-      render(container, selectedDate);
-    };
+    // Tổng calo + tag %
+    const totalCalEl = container.querySelector('#diary-total-cal');
+    if (totalCalEl) totalCalEl.textContent = summary.totalCalories;
+    const unitEl = container.querySelector('#diary-tdee-unit');
+    if (unitEl) unitEl.textContent = `/ ${tdee} kcal`;
+    const tagEl = container.querySelector('#diary-tdee-tag');
+    if (tagEl) {
+      tagEl.className = `tag ${summary.totalCalories > tdee ? 'tag--amber' : 'tag--primary'}`;
+      tagEl.textContent = `${Math.round((summary.totalCalories / tdee) * 100)}% TDEE`;
+    }
 
-    btnPrev.onclick = () => {
-      const cur = new Date(selectedDate + 'T00:00:00');
-      cur.setDate(cur.getDate() - 1);
-      const y = cur.getFullYear();
-      const m = String(cur.getMonth() + 1).padStart(2, '0');
-      const d = String(cur.getDate()).padStart(2, '0');
-      selectedDate = `${y}-${m}-${d}`;
-      render(container, selectedDate);
-    };
+    // Cảnh báo TDEE
+    const adviceEl = container.querySelector('#diary-tdee-advice');
+    if (adviceEl) {
+      adviceEl.innerHTML = tdeeAdvice ? `
+        <div class="advice-box advice-box--${tdeeAdvice.type}" style="margin-bottom:var(--sp-3);">
+          <i class="fa-solid ${tdeeAdvice.icon}"></i>
+          ${tdeeAdvice.html}
+        </div>
+      ` : '';
+    }
 
-    btnNext.onclick = () => {
-      const cur = new Date(selectedDate + 'T00:00:00');
-      cur.setDate(cur.getDate() + 1);
-      const y = cur.getFullYear();
-      const m = String(cur.getMonth() + 1).padStart(2, '0');
-      const d = String(cur.getDate()).padStart(2, '0');
-      selectedDate = `${y}-${m}-${d}`;
-      render(container, selectedDate);
-    };
+    // Macro legend
+    const setText = (id, val) => { const el = container.querySelector(id); if (el) el.textContent = val; };
+    setText('#diary-carb-val', `${summary.totalCarb}g`);
+    setText('#diary-carb-kcal', `${Math.round(summary.totalCarb * 4)} kcal`);
+    setText('#diary-protein-val', `${summary.totalProtein}g`);
+    setText('#diary-protein-kcal', `${Math.round(summary.totalProtein * 4)} kcal`);
+    setText('#diary-fat-val', `${summary.totalFat}g`);
+    setText('#diary-fat-kcal', `${Math.round(summary.totalFat * 9)} kcal`);
 
-    btnManualAdd.onclick = () => showManualAddModal(container);
+    // Danh sách món ăn theo bữa (đổi phần này thôi, không đụng phần chart/canvas)
+    const mealsContainer = container.querySelector('#diary-meals-container');
+    if (mealsContainer) {
+      mealsContainer.innerHTML = renderMealsListHtml(summary);
+      bindMealListEvents(container);
+    }
 
-    // Delete meal buttons
+    updateMacroChart(summary);
+  }
+
+  function renderMealsListHtml(summary) {
+    return mealTypes.map(type => {
+      const meals = (summary.entries || []).filter(e => e.mealType === type);
+      const mealCal = meals.reduce((sum, item) => sum + (item.calories || 0), 0);
+
+      return `
+        <div class="card" style="padding:var(--sp-3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-2);">
+            <div style="font-weight:800; font-size:var(--fs-md); color:var(--slate-800);">
+              ${NF_UI.getMealIcon(type)} ${type}
+              <span class="text-xs text-muted" style="font-weight:600; margin-left:0.25rem;">(${meals.length} món)</span>
+            </div>
+            <span class="tag tag--primary" style="font-size:var(--fs-xs);">${mealCal} kcal</span>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:var(--sp-2);">
+            ${meals.length > 0 ? meals.map(item => `
+              <div class="diary-entry">
+                <div class="diary-entry__info">
+                  <div class="diary-entry__name">${item.name}</div>
+                  <div class="diary-entry__meta">
+                    <span>${item.serving || '1 phần'}</span>
+                    <span>•</span>
+                    <span>C: ${item.carb || 0}g</span>
+                    <span>P: ${item.protein || 0}g</span>
+                    <span>F: ${item.fat || 0}g</span>
+                    ${item.time ? `<span>• ${item.time}</span>` : ''}
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:var(--sp-2);">
+                  <div class="diary-entry__cal">${item.calories} kcal</div>
+                  <button class="diary-entry__delete btn-delete-entry" data-id="${item.id}" title="Xóa món này">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+              </div>
+            `).join('') : `
+              <div style="padding:var(--sp-2) 0; color:var(--slate-400); font-size:var(--fs-xs); font-style:italic;">
+                Chưa có món nào cho ${type}.
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function bindMealListEvents(container) {
     const deleteBtns = container.querySelectorAll('.btn-delete-entry');
     deleteBtns.forEach(btn => {
       btn.onclick = async () => {
@@ -295,10 +264,102 @@ const NF_PageDiary = (() => {
         if (ok) {
           NF_Storage.removeDiaryEntry(id, selectedDate);
           NF_UI.showToast('Đã xóa món ăn', 'info');
-          render(container, selectedDate);
+          refresh();
         }
       };
     });
+  }
+
+  /* ─── Chart.js: tạo 1 lần, các lần sau chỉ update data (không destroy/recreate) ─── */
+
+  function updateMacroChart(summary) {
+    const canvas = document.getElementById('diary-macro-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const c = summary.totalCarb || 0;
+    const p = summary.totalProtein || 0;
+    const f = summary.totalFat || 0;
+    const hasData = (c + p + f) > 0;
+
+    const dataValues = hasData ? [c, p, f] : [1, 1, 1];
+    const dataColors = hasData
+      ? ['#3b82f6', '#10b981', '#f59e0b']
+      : ['#e2e8f0', '#e2e8f0', '#e2e8f0'];
+
+    if (macroChartInstance) {
+      // Chỉ cập nhật dữ liệu + màu, không destroy/recreate → mượt hơn, đỡ tốn CPU/GPU
+      macroChartInstance.data.datasets[0].data = dataValues;
+      macroChartInstance.data.datasets[0].backgroundColor = dataColors;
+      macroChartInstance.options.plugins.tooltip.enabled = hasData;
+      macroChartInstance.update();
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    macroChartInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Carb (g)', 'Protein (g)', 'Fat (g)'],
+        datasets: [{
+          data: dataValues,
+          backgroundColor: dataColors,
+          borderWidth: 2,
+          borderColor: '#ffffff',
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '72%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: hasData,
+            callbacks: {
+              label: (ctx) => ` ${ctx.label}: ${ctx.raw}g`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /* ─── Sự kiện của khung trang (chỉ bind 1 lần) ─── */
+
+  function bindShellEvents(container) {
+    const datePicker = container.querySelector('#diary-date-picker');
+    const btnPrev = container.querySelector('#btn-prev-day');
+    const btnNext = container.querySelector('#btn-next-day');
+    const btnManualAdd = container.querySelector('#btn-open-manual-add');
+
+    datePicker.onchange = (e) => {
+      selectedDate = e.target.value;
+      refresh();
+    };
+
+    btnPrev.onclick = () => {
+      const cur = new Date(selectedDate + 'T00:00:00');
+      cur.setDate(cur.getDate() - 1);
+      selectedDate = _fmtDate(cur);
+      refresh();
+    };
+
+    btnNext.onclick = () => {
+      const cur = new Date(selectedDate + 'T00:00:00');
+      cur.setDate(cur.getDate() + 1);
+      selectedDate = _fmtDate(cur);
+      refresh();
+    };
+
+    btnManualAdd.onclick = () => showManualAddModal(container);
+  }
+
+  function _fmtDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
   }
 
   function showManualAddModal(container) {
@@ -385,7 +446,7 @@ const NF_PageDiary = (() => {
       NF_Storage.addDiaryEntry(entry, selectedDate);
       NF_UI.closeModal();
       NF_UI.showToast(`Đã thêm "${name}" vào ${mealType}!`, 'success');
-      render(container, selectedDate);
+      refresh();
     };
   }
 

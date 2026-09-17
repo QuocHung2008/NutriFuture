@@ -22,6 +22,9 @@ const NF_App = (() => {
     // Tự động di chuyển dữ liệu cũ v1 nếu có
     NF_Storage.migrateFromV1();
 
+    // Đồng bộ icon + gắn sự kiện cho nút chuyển giao diện sáng/tối
+    NF_UI.initThemeToggle();
+
     // Khởi động vòng lặp nhắc nhở (uống nước / ghi nhật ký) nếu người dùng đã bật
     if (typeof NF_Notifications !== 'undefined') {
       NF_Notifications.init();
@@ -33,9 +36,10 @@ const NF_App = (() => {
     // Xử lý các click vào bottom nav
     setupNav();
 
-    // Điều hướng lần đầu
+    // Điều hướng lần đầu — người dùng CHƯA nhập hồ sơ (onboarding) sẽ luôn được
+    // đưa vào tab Hồ sơ trước, không cho vào các tab khác cho đến khi lưu thông tin
     if (!window.location.hash) {
-      window.location.hash = '#home';
+      window.location.hash = NF_Storage.isOnboarded() ? '#home' : '#profile?onboarding=1';
     } else {
       handleRoute();
     }
@@ -50,7 +54,14 @@ const NF_App = (() => {
 
   function handleRoute() {
     const rawHash = window.location.hash || '#home';
-    const [path, queryStr] = rawHash.split('?');
+    let [path, queryStr] = rawHash.split('?');
+
+    // Chặn điều hướng sang trang khác nếu chưa hoàn tất onboarding (nhập hồ sơ lần đầu)
+    if (!NF_Storage.isOnboarded() && path !== '#profile') {
+      window.location.hash = '#profile?onboarding=1';
+      return;
+    }
+
     const pageHandler = routes[path] || routes['#home'];
     const contentContainer = document.getElementById('app-content');
 
@@ -66,7 +77,7 @@ const NF_App = (() => {
     currentRoute = path;
     updateNavActive(path);
 
-    // Xử lý tham số query (ví dụ: ?date=YYYY-MM-DD)
+    // Xử lý tham số query (ví dụ: ?date=YYYY-MM-DD hoặc ?onboarding=1)
     let queryParams = {};
     if (queryStr) {
       const pairs = queryStr.split('&');
@@ -82,6 +93,8 @@ const NF_App = (() => {
     // Render trang tương ứng
     if (path === '#diary') {
       pageHandler.render(contentContainer, queryParams.date || null);
+    } else if (path === '#profile') {
+      pageHandler.render(contentContainer, { onboarding: queryParams.onboarding === '1' });
     } else {
       pageHandler.render(contentContainer);
     }

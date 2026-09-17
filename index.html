@@ -9,6 +9,18 @@
   <meta name="apple-mobile-web-app-title" content="NutriFuture" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
+  <!-- Chống "chớp" sáng/tối (FOUC): đặt data-theme lên <html> TRƯỚC khi CSS được tải,
+       dựa trên lựa chọn đã lưu hoặc theo prefers-color-scheme của hệ thống -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('nf_theme');
+        var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) { /* localStorage có thể bị chặn — mặc định theme sáng */ }
+    })();
+  </script>
+
   <title>NutriFuture — AI Dinh Dưỡng Học Đường THPT</title>
   <meta name="description" content="NutriFuture — Ứng dụng AI phân tích và tư vấn dinh dưỡng học đường cho học sinh THPT, tích hợp Google Gemini Vision & Text API." />
 
@@ -44,6 +56,9 @@
       </div>
 
       <div class="header-actions">
+        <button id="btn-theme-toggle" class="header-date" title="Chuyển giao diện sáng/tối" aria-label="Chuyển giao diện sáng/tối">
+          <i class="fa-solid fa-moon" id="theme-toggle-icon"></i>
+        </button>
         <a href="#history" class="header-date" title="Xem lịch sử &amp; báo cáo">
           <i class="fa-solid fa-chart-column"></i>
           <span>Báo cáo</span>

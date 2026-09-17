@@ -39,6 +39,12 @@ const NF_Gemini = (() => {
 
   const API_VERSIONS = ['v1beta', 'v1'];
 
+  // Giới hạn số model dự phòng thử tối đa khi lỗi (thay vì toàn bộ 11 model × 2 version = 22 lần gọi,
+  // vừa chậm vừa "đốt" quota rất nhanh khi key đã hết hạn mức)
+  const MAX_FALLBACK_ATTEMPTS = 3;
+  const REQUEST_TIMEOUT_MS = 15000; // 15 giây — tránh treo vô hạn khi mạng chậm/đứng
+  const RETRY_BACKOFF_MS = 1200; // Nghỉ giữa các lần thử lại khi gặp lỗi 429 (rate limit)
+
   // Danh sách model hiển thị cho người dùng chọn thủ công trong giao diện (Hồ sơ)
   const MODEL_OPTIONS = [
     { value: 'auto', label: 'Tự động (khuyên dùng — AI tự chọn model tốt nhất)' },
@@ -99,11 +105,31 @@ const NF_Gemini = (() => {
 
   async function _executeRequest(model, body, version = 'v1beta') {
     const url = _getApiUrl(model, version);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+
+    // AbortController: hủy request nếu quá REQUEST_TIMEOUT_MS — tránh treo vô hạn khi mạng chậm
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      if (fetchErr.name === 'AbortError') {
+        const timeoutError = new Error('REQUEST_TIMEOUT');
+        timeoutError.status = 0;
+        timeoutError.model = model;
+        timeoutError.version = version;
+        throw timeoutError;
+      }
+      throw fetchErr;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
@@ -129,6 +155,12 @@ const NF_Gemini = (() => {
   }
 
   /* ─── Gọi API chung với cơ chế Auto-Fallback thông minh ─── */
+
+  function _sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  const _RETRYABLE_STATUSES = [404, 503, 429, 0]; // 0 = timeout (AbortError)
 
   async function _call(prompt, base64Image = null) {
     if (!isConfigured()) {
@@ -162,28 +194,47 @@ const NF_Gemini = (() => {
     try {
       return await _executeRequest(primaryModel, body, primaryVer);
     } catch (err) {
-      // Nếu gặp lỗi 404 (không tìm thấy model), 503 (quá tải), hoặc 429 (giới hạn request), thử tự động fallback
-      if (err.status === 404 || err.status === 503 || err.status === 429) {
-        console.warn(`[Gemini API] Lỗi ${err.status} từ model "${primaryModel}" (${primaryVer}). Đang thử model dự phòng...`);
-        
+      // Nếu gặp lỗi 404 (không tìm thấy model), 503 (quá tải), 429 (giới hạn request),
+      // hoặc timeout (0) — thử tự động fallback, nhưng GIỚI HẠN số lần thử để tránh
+      // "bắn" hàng chục request liên tiếp làm cạn quota nhanh hơn khi key đã hết hạn mức.
+      if (_RETRYABLE_STATUSES.includes(err.status)) {
+        console.warn(`[Gemini API] Lỗi ${err.status} từ model "${primaryModel}" (${primaryVer}). Đang thử model dự phòng (tối đa ${MAX_FALLBACK_ATTEMPTS} lần)...`);
+
+        let attempts = 0;
+        outer:
         for (const ver of API_VERSIONS) {
           for (const candidate of CANDIDATE_MODELS) {
             if (candidate === primaryModel && ver === primaryVer) continue;
+            if (attempts >= MAX_FALLBACK_ATTEMPTS) break outer;
+
+            // Nghỉ 1 nhịp trước khi thử lại nếu lỗi là rate-limit (429) — tránh dồn dập
+            // gọi lại ngay lập tức càng làm tình trạng giới hạn tệ hơn.
+            if (err.status === 429 && attempts > 0) {
+              await _sleep(RETRY_BACKOFF_MS);
+            }
+
+            attempts++;
             try {
-              console.info(`[Gemini API] Thử kết nối dự phòng: ${ver}/${candidate}`);
+              console.info(`[Gemini API] Thử kết nối dự phòng (${attempts}/${MAX_FALLBACK_ATTEMPTS}): ${ver}/${candidate}`);
               const text = await _executeRequest(candidate, body, ver);
               console.info(`[Gemini API] Kết nối dự phòng thành công với: ${ver}/${candidate}!`);
-              // Lưu lại model/version này để dùng cho các lần sau nếu lỗi là do cấu hình (404) hoặc muốn chuyển hẳn sang model nhẹ
               if (err.status === 404 || err.status === 503) {
                 localStorage.setItem('nf_working_model', candidate);
                 localStorage.setItem('nf_working_version', ver);
               }
               return text;
             } catch (retryErr) {
-              if (retryErr.status === 404 || retryErr.status === 503 || retryErr.status === 429) continue;
+              if (_RETRYABLE_STATUSES.includes(retryErr.status)) continue;
               throw retryErr;
             }
           }
+        }
+
+        // Đã thử hết số lần cho phép — trả lỗi gốc rõ ràng thay vì tiếp tục âm thầm thử
+        if (err.status === 429) {
+          const quotaErr = new Error('Đã thử ' + attempts + ' model dự phòng nhưng vẫn bị giới hạn hạn mức (429). Vui lòng đợi một lát rồi thử lại.');
+          quotaErr.status = 429;
+          throw quotaErr;
         }
       }
 
@@ -202,9 +253,11 @@ const NF_Gemini = (() => {
     let lastError = null;
 
     for (const ver of API_VERSIONS) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
         const url = `https://generativelanguage.googleapis.com/${ver}/models?key=${encodeURIComponent(key)}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: controller.signal });
         const data = await res.json().catch(() => ({}));
 
         if (res.ok) {
@@ -231,7 +284,9 @@ const NF_Gemini = (() => {
           lastError = data?.error?.message || `HTTP ${res.status}: ${res.statusText}`;
         }
       } catch (e) {
-        lastError = e.message;
+        lastError = e.name === 'AbortError' ? `Quá thời gian chờ (${REQUEST_TIMEOUT_MS / 1000}s) khi kết nối ${ver}` : e.message;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -271,6 +326,10 @@ const NF_Gemini = (() => {
     const msg = error?.message || String(error);
     const detail = error?.details?.error?.message;
     const fullDetail = detail ? `"${detail}"` : (msg ? `"${msg}"` : '');
+
+    if (msg === 'REQUEST_TIMEOUT' || error?.status === 0) {
+      return `Yêu cầu tới Gemini AI quá thời gian chờ (${REQUEST_TIMEOUT_MS / 1000}s). Mạng có thể đang chậm — vui lòng kiểm tra kết nối và thử lại.`;
+    }
 
     if (msg === 'API_NOT_CONFIGURED') {
       return 'Chưa cấu hình API key. Vui lòng vào mục Hồ sơ để nhập API key.';

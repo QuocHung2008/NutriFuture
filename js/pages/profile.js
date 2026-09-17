@@ -54,7 +54,8 @@ const NF_PageProfile = (() => {
     };
   }
 
-  function render(container) {
+  function render(container, options = {}) {
+    const isOnboarding = !!options.onboarding;
     const profile = NF_Storage.getProfile() || {};
     const hasData = !!(profile.weight && profile.height && profile.age);
     const hasApiKey = NF_Gemini.isConfigured();
@@ -77,6 +78,13 @@ const NF_PageProfile = (() => {
         </div>
 
         <div class="page__body grid-2-desktop">
+          ${isOnboarding ? `
+            <div class="advice-box advice-box--info" style="grid-column:1 / -1;">
+              <i class="fa-solid fa-hand-sparkles"></i>
+              <strong>Chào mừng bạn đến với NutriFuture!</strong>
+              Trước khi bắt đầu, hãy nhập thông tin thể chất bên dưới để hệ thống tính toán chỉ số dinh dưỡng cá nhân hóa (BMI, TDEE, nhu cầu nước...) — chỉ mất khoảng 30 giây, và bạn chỉ cần làm 1 lần duy nhất.
+            </div>
+          ` : ''}
           <!-- Cột trái: Form nhập -->
           <div>
             <!-- Profile Form Card -->
@@ -247,7 +255,7 @@ const NF_PageProfile = (() => {
       </div>
     `;
 
-    setupEvents(container);
+    setupEvents(container, isOnboarding);
     updateMetricsDisplay(container);
   }
 
@@ -336,7 +344,7 @@ const NF_PageProfile = (() => {
     `;
   }
 
-  function setupEvents(container) {
+  function setupEvents(container, isOnboarding = false) {
     const inputs = container.querySelectorAll('#form-user-profile input, #form-user-profile select');
     inputs.forEach(input => {
       input.addEventListener('input', () => updateMetricsDisplay(container));
@@ -367,6 +375,11 @@ const NF_PageProfile = (() => {
       NF_Storage.setOnboarded();
       NF_UI.showToast('Đã lưu hồ sơ dinh dưỡng cá nhân thành công!', 'success');
       updateMetricsDisplay(container);
+
+      // Lần đầu onboarding: sau khi lưu xong, đưa người dùng vào Trang chủ để bắt đầu dùng app
+      if (isOnboarding) {
+        setTimeout(() => { window.location.hash = '#home'; }, 900);
+      }
     };
 
     // Toggle Bật/Tắt nhắc nhở (yêu cầu quyền thông báo nếu cần)

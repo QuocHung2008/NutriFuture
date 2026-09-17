@@ -203,6 +203,48 @@ const NF_UI = (() => {
     return map[type] || '🍽️';
   }
 
+  /* ─── Dark / Light Theme Toggle ─── */
+
+  const THEME_KEY = 'nf_theme';
+
+  function getTheme() {
+    return document.documentElement.getAttribute('data-theme') || 'light';
+  }
+
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', theme === 'dark' ? '#1c1814' : '#f26419');
+    }
+    _updateThemeIcon(theme);
+  }
+
+  function toggleTheme() {
+    const next = getTheme() === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    return next;
+  }
+
+  function _updateThemeIcon(theme) {
+    const icon = document.getElementById('theme-toggle-icon');
+    if (!icon) return;
+    icon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+  }
+
+  /** Gọi 1 lần lúc khởi động app: đồng bộ icon + gắn sự kiện cho nút toggle trên header */
+  function initThemeToggle() {
+    _updateThemeIcon(getTheme());
+    const btn = document.getElementById('btn-theme-toggle');
+    if (btn) {
+      btn.onclick = () => {
+        const next = toggleTheme();
+        showToast(next === 'dark' ? 'Đã bật giao diện tối 🌙' : 'Đã bật giao diện sáng ☀️', 'info');
+      };
+    }
+  }
+
   return {
     showToast,
     showModal,
@@ -218,5 +260,9 @@ const NF_UI = (() => {
     confirm,
     getBMIClass,
     getMealIcon,
+    getTheme,
+    setTheme,
+    toggleTheme,
+    initThemeToggle,
   };
 })();
