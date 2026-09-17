@@ -5,7 +5,7 @@
  *
  * Tăng CACHE_VERSION mỗi khi đổi cấu trúc file tĩnh để buộc trình duyệt tải bản mới.
  */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `nutrifuture-cache-${CACHE_VERSION}`;
 
 // Chỉ liệt kê file same-origin ở đây — addAll sẽ lỗi toàn bộ nếu 1 URL cross-origin

@@ -72,10 +72,10 @@ const NF_PageHistory = (() => {
             
             <div style="display:flex; justify-content:center; gap:var(--sp-4); margin-top:var(--sp-2); font-size:var(--fs-xs);">
               <span style="display:flex; align-items:center; gap:0.25rem;">
-                <span style="width:12px; height:3px; background:#10b981; display:inline-block; border-radius:2px;"></span> Calo thực tế
+                <span style="width:12px; height:3px; background:#1b2a4a; display:inline-block; border-radius:2px;"></span> Calo thực tế
               </span>
               <span style="display:flex; align-items:center; gap:0.25rem;">
-                <span style="width:12px; height:2px; border-top:2px dashed #f59e0b; display:inline-block;"></span> Mục tiêu TDEE (${tdee})
+                <span style="width:12px; height:2px; border-top:2px dashed #a8873f; display:inline-block;"></span> Mục tiêu TDEE (${tdee})
               </span>
             </div>
           </div>
@@ -198,7 +198,7 @@ const NF_PageHistory = (() => {
             type: 'line',
             label: 'Mục tiêu TDEE',
             data: targetLine,
-            borderColor: '#f59e0b',
+            borderColor: '#a8873f',
             borderWidth: 2,
             borderDash: [5, 5],
             pointRadius: 0,
@@ -209,7 +209,7 @@ const NF_PageHistory = (() => {
             type: 'bar',
             label: 'Calo tiêu thụ',
             data: dataCal,
-            backgroundColor: dataCal.map(c => c > tdee ? '#fbbf24' : '#10b981'),
+            backgroundColor: dataCal.map(c => c > tdee ? '#6b2d3c' : '#1b2a4a'),
             borderRadius: 6,
             order: 2
           }
@@ -221,7 +221,7 @@ const NF_PageHistory = (() => {
         scales: {
           y: {
             beginAtZero: true,
-            grid: { color: '#f1f5f9' },
+            grid: { color: '#e4ded2' },
             ticks: { font: { size: 10, family: 'Inter' } }
           },
           x: {

@@ -283,8 +283,8 @@ const NF_PageDiary = (() => {
 
     const dataValues = hasData ? [c, p, f] : [1, 1, 1];
     const dataColors = hasData
-      ? ['#3b82f6', '#10b981', '#f59e0b']
-      : ['#e2e8f0', '#e2e8f0', '#e2e8f0'];
+      ? ['#1b2a4a', '#a8873f', '#6b2d3c']
+      : ['#ddd6c7', '#ddd6c7', '#ddd6c7'];
 
     if (macroChartInstance) {
       // Chỉ cập nhật dữ liệu + màu, không destroy/recreate → mượt hơn, đỡ tốn CPU/GPU
@@ -304,7 +304,7 @@ const NF_PageDiary = (() => {
           data: dataValues,
           backgroundColor: dataColors,
           borderWidth: 2,
-          borderColor: '#ffffff',
+          borderColor: '#fdfbf7',
           hoverOffset: 4
         }]
       },
