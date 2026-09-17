@@ -1,319 +1,148 @@
-# Tái Cấu Trúc Toàn Diện NutriFuture
+# Nâng Cấp NutriFuture — Giai Đoạn 2: Hiệu Năng, Độ Ổn Định & Bảo Mật
 
 **Đề tài KHKT:** "Ứng dụng AI trong phân tích và tư vấn dinh dưỡng học đường cho học sinh THPT"
 
-**Bối cảnh:** Chuyển từ monolith 1 file HTML (~1457 dòng) với dữ liệu hardcoded và AI giả lập → Static site modular, deploy GitHub Pages, tích hợp Gemini AI thật.
+**Bối cảnh:** Giai đoạn 1 (đã hoàn thành) chuyển NutriFuture từ monolith 1 file HTML sang static site modular (`index.html` + `css/` + `js/`), tích hợp Gemini AI thật, deploy GitHub Pages. Giai đoạn 2 này **không đổi kiến trúc tổng thể** (vẫn zero-backend, deploy hoàn toàn trên GitHub) mà siết chặt ba mặt: hiệu năng, độ ổn định và bảo mật, để hồ sơ dự thi thể hiện được mức độ chín chắn kỹ thuật cao hơn.
 
 ---
 
 ## User Review Required
 
-> [!IMPORTANT]
-> **API Key trên client-side**: Do ràng buộc static hosting (GitHub Pages), API key Gemini sẽ nằm trong browser. Giảm thiểu rủi ro bằng:
-> - Giới hạn key theo HTTP referrer = `QuocHung2008.github.io`
-> - Chỉ bật API `Generative Language API`
-> - Đặt quota thấp (vd: 100 requests/ngày)
-> - Key lưu riêng trong `js/config.js` + `.gitignore`
+> **API key vẫn nằm phía client.** Đây là giới hạn cố hữu của deploy 100% trên GitHub Pages (không backend). Giai đoạn này giảm _thiệt hại tối đa_ nếu key bị lộ (CSP, giới hạn referrer, quota thấp) chứ không giấu được key tuyệt đối. Cần nêu rõ trade-off này trong phần hạn chế của báo cáo KHKT thay vì khẳng định "an toàn tuyệt đối".
 
-> [!WARNING]
-> **Breaking change**: Toàn bộ dữ liệu cũ trong `localStorage` key `nutrifuture_mobile_v1` sẽ không tương thích. App mới sẽ dùng key mới và có migration tự động.
+> **Breaking change dữ liệu:** thêm field `schemaVersion` vào cấu trúc JSON lưu trong `localStorage` và file export. Cần chạy hàm `migrateLegacyData()` một lần để dữ liệu cũ (chưa có version) không bị mất khi người dùng cập nhật app.
+
+> **CSP có thể chặn nhầm nếu cấu hình sai domain CDN.** Sau khi thêm Content-Security-Policy, bắt buộc kiểm thử thủ công toàn bộ 6 trang trước khi merge vào `main`, vì CSP lỗi sẽ khiến Chart.js hoặc Gemini API bị chặn âm thầm (không có lỗi UI rõ ràng, chỉ có lỗi trong Console).
 
 ---
 
 ## Proposed Changes
 
-### Tổng quan kiến trúc mới
+### Kiến trúc thư mục cập nhật
 
 ```
 NutriFuture/
-├── index.html                  # Entry point duy nhất (SPA-like)
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # [NEW] CI/CD: gitleaks scan → build → deploy Pages
+├── index.html                  # [MODIFY] + CSP meta tag, SRI cho script CDN
 ├── css/
-│   └── style.css               # Vanilla CSS design system
+│   └── style.css
 ├── js/
-│   ├── config.js               # ⚠️ API key (gitignored)
-│   ├── config.example.js       # Template cho người fork
-│   ├── app.js                  # App init, router, global state
-│   ├── storage.js              # localStorage/IndexedDB + export/import
-│   ├── gemini.js               # Gemini API wrapper (text + vision)
-│   ├── ui.js                   # Toast, modal, animations helper
-│   ├── pages/
-│   │   ├── home.js             # Trang chủ dashboard
-│   │   ├── camera.js           # Camera AI (Gemini Vision)
-│   │   ├── lookup.js           # Tra cứu dinh dưỡng (Gemini Text)
-│   │   ├── profile.js          # Cá nhân hóa + BMI/TDEE calculator
-│   │   ├── diary.js            # Nhật ký dinh dưỡng + biểu đồ
-│   │   └── history.js          # Lịch sử & thống kê dài hạn
-├── assets/
-│   └── icons/                  # SVG icons (nếu cần)
-├── .gitignore                  # Bao gồm js/config.js
-├── README.md                   # Hướng dẫn deploy + bảo mật API key
-└── LICENSE
+│   ├── config.js               # (gitignored)
+│   ├── config.example.js
+│   ├── app.js                  # [MODIFY] lazy-load trang qua dynamic import()
+│   ├── storage.js              # [MODIFY] schemaVersion + migration + QuotaExceededError handling
+│   ├── gemini.js               # [MODIFY] retry/backoff + validate response schema
+│   ├── ui.js                   # [MODIFY] thêm sanitize() dùng trước khi render nội dung AI
+│   ├── sw.js                   # [NEW] Service Worker — cache App Shell, hỗ trợ offline
+│   └── pages/
+│       ├── home.js
+│       ├── camera.js           # [MODIFY] nén/resize ảnh trước khi gửi Gemini Vision
+│       ├── lookup.js           # [MODIFY] debounce 500ms
+│       ├── profile.js
+│       ├── diary.js            # [MODIFY] destroy() Chart.js instance khi rời trang
+│       └── history.js
+├── .gitignore
+├── README.md
+└── implementation_plan.md
 ```
 
 ---
 
-### 1. Tính năng được GIỮ LẠI (nâng cấp)
+## 1. Nhóm Hiệu Năng (Performance)
 
-| # | Tính năng | Thay đổi chính |
-|---|-----------|----------------|
-| 1 | **Tra cứu dinh dưỡng** | Bỏ CSDL hardcoded → Gọi Gemini Text API để tra cứu real-time |
-| 2 | **Camera AI** | Bỏ giả lập → Gemini Vision API thật (chụp ảnh → base64 → API) |
-| 3 | **Cá nhân hóa (BMI/TDEE)** | Bỏ giá trị mẫu → Form trống, người dùng tự nhập, máy tính tự động |
-| 4 | **Nhật ký dinh dưỡng** | Nâng cấp biểu đồ, lưu theo ngày, export/import JSON |
-| 5 | **Dashboard** | Thiết kế lại hoàn toàn, hiển thị dữ liệu thật từ người dùng |
-
-### 2. Tính năng bị LOẠI BỎ
-
-| Tính năng | Lý do loại bỏ |
-|-----------|---------------|
-| **Gamification (XP/Huy hiệu/Quiz)** | Không phù hợp tính khoa học của đề tài KHKT. Không có backend nên XP không có ý nghĩa thực tế |
-| **Thực đơn gợi ý hardcoded** | Thay bằng Gemini AI gợi ý thực đơn dựa trên TDEE và chỉ số cá nhân |
-| **Demo "Mẫu thử" ảnh** | Không cần khi có AI thật |
-
-### 3. Tính năng MỚI
-
-| # | Tính năng | Mô tả |
-|---|-----------|-------|
-| 1 | **AI Tư vấn thực đơn** | Dựa trên chỉ số BMI/TDEE đã nhập → Gemini gợi ý thực đơn phù hợp |
-| 2 | **Lịch sử & Thống kê** | Xem lại nhật ký theo tuần/tháng, biểu đồ xu hướng calo/macro |
-| 3 | **Export/Import dữ liệu** | Nút backup JSON, khôi phục khi đổi thiết bị/xóa cache |
-| 4 | **Onboarding Flow** | Lần đầu mở app → hướng dẫn nhập thông tin cá nhân trước |
-| 5 | **Dark/Light theme** | Toggle chế độ tối, lưu preference |
+| #   | Hạng mục                         | File                                       | Nội dung thay đổi                                                                                                          |
+| --- | -------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | Lazy-load trang                  | `js/app.js`                                | Thay import tĩnh toàn bộ `js/pages/*.js` bằng dynamic `import()` gọi khi router chuyển route, giảm thời gian tải trang chủ |
+| 1.2 | Nén ảnh trước khi gửi Vision API | `js/pages/camera.js`                       | Dùng `canvas.toBlob(quality=0.7)`, giới hạn cạnh dài ảnh ≤ 1024px trước khi convert base64 gửi Gemini                      |
+| 1.3 | Debounce tra cứu                 | `js/pages/lookup.js`                       | Thêm debounce ≥ 500ms sau khi người dùng ngừng gõ mới gọi API, tránh gọi thừa                                              |
+| 1.4 | Debounce ghi localStorage        | `js/storage.js`                            | Debounce ~300ms khi ghi liên tục từ form Hồ sơ/Nhật ký                                                                     |
+| 1.5 | Vòng đời biểu đồ                 | `js/pages/diary.js`, `js/pages/history.js` | Gọi `chartInstance.destroy()` trong hàm `unmount()` của mỗi trang để tránh rò rỉ bộ nhớ khi qua lại nhiều lần              |
+| 1.6 | SRI + pin version CDN            | `index.html`                               | Thêm `integrity` + `crossorigin="anonymous"` cho `<script>` Chart.js, pin đúng version thay vì `@latest`                   |
+| 1.7 | Cache-busting asset tĩnh         | `.github/workflows/deploy.yml`             | Bước build thêm hash vào tên file `css/style.css`, `js/*.js` khi publish lên Pages                                         |
 
 ---
 
-### Chi tiết từng component
+## 2. Nhóm Độ Ổn Định (Reliability)
+
+| #   | Hạng mục                           | File                           | Nội dung thay đổi                                                                                                                                                                         |
+| --- | ---------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1 | Retry + backoff cho Gemini API     | `js/gemini.js`                 | Bọc `fetch()` trong `try/catch`, retry tối đa 2–3 lần với exponential backoff khi gặp lỗi mạng, 429, 5xx                                                                                  |
+| 2.2 | Validate schema phản hồi AI        | `js/gemini.js`                 | Kiểm tra field bắt buộc (`name`, `calories`, `protein`, `fat`, `carb`...) trước khi ghi vào state; nếu thiếu field → fallback thông báo lỗi rõ ràng thay vì crash UI                      |
+| 2.3 | Service Worker — App Shell offline | `js/sw.js`, `index.html`       | Cache `index.html`, `css/style.css`, `js/*.js` (không cache request tới Gemini API); khi mất mạng vẫn mở được app, xem lại Nhật ký/Lịch sử cũ; các nút cần AI hiển thị "Cần kết nối mạng" |
+| 2.4 | Migration schema dữ liệu           | `js/storage.js`                | Thêm field `schemaVersion` vào object export/localStorage; hàm `migrateLegacyData()` chạy 1 lần khi phát hiện dữ liệu chưa có version (từ key cũ `nutrifuture_mobile_v1`)                 |
+| 2.5 | Bắt lỗi Quota localStorage         | `js/storage.js`                | `try/catch` quanh `localStorage.setItem`, bắt riêng `QuotaExceededError`, gợi ý người dùng Export rồi xoá bớt dữ liệu cũ                                                                  |
+| 2.6 | Fallback Camera API                | `js/pages/camera.js`           | Kiểm tra `navigator.mediaDevices` trước khi gọi `getUserMedia`; nếu không hỗ trợ → tự chuyển sang chế độ "Tải ảnh lên"                                                                    |
+| 2.7 | CI kiểm thử trước deploy           | `.github/workflows/deploy.yml` | Thêm job `eslint` + kiểm tra HTML hợp lệ (`html-validate`), chặn merge nếu fail                                                                                                           |
 
 ---
 
-#### [NEW] `css/style.css` — Design System Vanilla CSS
+## 3. Nhóm Bảo Mật (Security)
 
-- Design tokens: colors, spacing, typography, border-radius
-- Responsive mobile-first (breakpoints 640px, 768px, 1024px)
-- Glassmorphism cards, smooth animations, gradient accents
-- Dark mode via `[data-theme="dark"]` selector
-- Font: Inter (Google Fonts)
-- Icons: Font Awesome 6 (CDN)
-- Bỏ hoàn toàn TailwindCSS CDN
-
----
-
-#### [NEW] `js/config.js` (gitignored) + `js/config.example.js`
-
-```js
-// config.example.js — Copy thành config.js và thêm API key
-const GEMINI_CONFIG = {
-  apiKey: 'YOUR_GEMINI_API_KEY_HERE',
-  model: 'gemini-2.0-flash',
-  visionModel: 'gemini-2.0-flash',
-  maxTokens: 2048,
-};
-```
+| #   | Hạng mục                           | File                                 | Nội dung thay đổi                                                                                                                   |
+| --- | ---------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 3.1 | Content-Security-Policy            | `index.html`                         | Thêm meta CSP: chỉ cho `script-src`/`style-src` từ domain CDN đã dùng, `connect-src` chỉ tới `generativelanguage.googleapis.com`    |
+| 3.2 | Chống XSS nội dung AI              | `js/ui.js` + toàn bộ `js/pages/*.js` | Thêm hàm `sanitize()` (dựa trên `textContent` hoặc DOMPurify), thay mọi chỗ đang dùng `innerHTML` với text từ Gemini                |
+| 3.3 | Quét secret trong CI               | `.github/workflows/deploy.yml`       | Thêm job `gitleaks/gitleaks-action` chạy trước bước build, chặn merge nếu phát hiện API key bị commit nhầm                          |
+| 3.4 | Giới hạn API key trên Google Cloud | Ngoài code (Google Cloud Console)    | HTTP referrer restriction đúng domain Pages, chỉ bật `Generative Language API`, đặt quota thấp (100 request/ngày), bật budget alert |
+| 3.5 | Branch protection                  | Ngoài code (GitHub Settings)         | Bật rule: PR review + CI pass bắt buộc trước khi merge vào `main`                                                                   |
+| 3.6 | Dependabot                         | `.github/dependabot.yml`             | Theo dõi version CDN/npm nếu về sau chuyển sang bundler, tự tạo PR khi có bản vá lỗ hổng                                            |
+| 3.7 | Enforce HTTPS                      | Ngoài code (GitHub Settings → Pages) | Bật tuỳ chọn "Enforce HTTPS" (thường mặc định bật, xác nhận lại)                                                                    |
 
 ---
 
-#### [NEW] `js/gemini.js` — Gemini API Wrapper
+## Tính Khoa Học (không đổi so với Giai đoạn 1)
 
-- `analyzeImage(base64)` → Gọi Gemini Vision, parse JSON nutrition data
-- `searchFood(query)` → Gọi Gemini Text, trả về thông tin dinh dưỡng
-- `suggestMealPlan(profile)` → Gọi Gemini Text, gợi ý thực đơn theo TDEE
-- Error handling: mạng lỗi, ảnh mờ, không nhận diện được
-- Rate limiting client-side (debounce 1s)
-- Structured prompt engineering cho kết quả JSON chuẩn
-
----
-
-#### [NEW] `js/storage.js` — Local Storage Manager
-
-- `saveProfile(data)` / `getProfile()` — Thông tin cá nhân
-- `saveDiaryEntry(entry)` / `getDiary(date)` — Nhật ký theo ngày
-- `exportAllData()` → Download file JSON
-- `importData(file)` → Parse và restore
-- Migration từ format cũ (`nutrifuture_mobile_v1`)
+| Chỉ số            | Công thức                               | Nguồn                       |
+| ----------------- | --------------------------------------- | --------------------------- |
+| **BMI**           | W / H² (kg/m²)                          | WHO, 2000                   |
+| **BMR (Nam)**     | 10W + 6.25H − 5A + 5                    | Mifflin-St Jeor, 1990       |
+| **BMR (Nữ)**      | 10W + 6.25H − 5A − 161                  | Mifflin-St Jeor, 1990       |
+| **TDEE**          | BMR × Activity Factor                   | ACSM Guidelines             |
+| **Nhu cầu nước**  | 33ml/kg/ngày                            | EFSA, 2010                  |
+| **Phân bổ macro** | Carb 50–55%, Protein 15–20%, Fat 25–30% | Viện Dinh Dưỡng Quốc Gia VN |
 
 ---
 
-#### [NEW] `js/ui.js` — UI Utilities
+## Thứ Tự Triển Khai Đề Xuất (chia theo PR để dễ review)
 
-- `showToast(message, type)` — Toast notifications
-- `showModal(content)` / `closeModal()` — Modal system
-- `showLoading()` / `hideLoading()` — Loading spinner cho API calls
-- `animateNumber(element, from, to)` — Số đếm animation
-- Theme toggle logic
+1. **PR 1 — CI/CD nền tảng**: `.github/workflows/deploy.yml` (gitleaks + build + deploy), bật Branch protection, chuyển Pages source sang "GitHub Actions".
+2. **PR 2 — Bảo mật client**: CSP meta tag, SRI cho Chart.js, hàm `sanitize()` thay toàn bộ `innerHTML` nguy hiểm.
+3. **PR 3 — Độ ổn định gọi API**: retry/backoff + validate schema trong `js/gemini.js`.
+4. **PR 4 — Dữ liệu & offline**: `schemaVersion` + migration trong `storage.js`, Service Worker `sw.js`.
+5. **PR 5 — Hiệu năng**: lazy-load trang, nén ảnh camera, debounce tra cứu/ghi localStorage, dọn vòng đời Chart.js.
 
----
-
-#### [NEW] `js/app.js` — App Controller
-
-- Router: hash-based navigation (`#home`, `#camera`, `#lookup`, `#profile`, `#diary`, `#history`)
-- Init: check onboarding status, load profile, render active page
-- Event delegation cho bottom nav
-- Service Worker registration (optional, cho PWA)
-
----
-
-#### [MODIFY] `index.html` — Entry Point
-
-- Chỉ chứa shell HTML (header, main container, bottom nav, modals)
-- Không chứa nội dung page — render bởi JS modules
-- SEO meta tags đầy đủ
-- Preconnect Google Fonts, CDN links
-- Script tags load từ `/js/`
-
----
-
-#### [NEW] `js/pages/home.js` — Trang chủ
-
-- Hero banner tinh gọn với tên đề tài KHKT
-- Cards hiển thị: Calo hôm nay vs TDEE, Nước uống, BMI hiện tại
-- Quick actions: Camera AI, Tra cứu, Nhật ký
-- Dữ liệu real-time từ profile + diary (không hardcoded)
-- Nếu chưa có profile → hiển thị CTA "Bắt đầu nhập thông tin"
-
----
-
-#### [NEW] `js/pages/camera.js` — Camera AI (Gemini Vision)
-
-Flow chi tiết:
-1. Mở camera (MediaDevices API, `facingMode: environment`)
-2. Hiển thị live preview
-3. Nút "Chụp" → capture frame từ `<canvas>`
-4. Convert canvas → base64 JPEG
-5. Gọi `gemini.analyzeImage(base64)` với prompt:
-   ```
-   Phân tích hình ảnh món ăn này. Trả về JSON:
-   {
-     "name": "Tên món ăn",
-     "serving": "Khẩu phần",
-     "calories": number,
-     "protein": number,
-     "fat": number,
-     "carb": number,
-     "fiber": number,
-     "vitamins": ["..."],
-     "minerals": ["..."],
-     "advice": "Lời khuyên dinh dưỡng cho học sinh THPT"
-   }
-   ```
-6. Hiển thị kết quả với animation
-7. Nút "Lưu vào nhật ký" → `storage.saveDiaryEntry()`
-8. Xử lý lỗi: ảnh mờ, không phải thức ăn, mạng lỗi
-
-Cũng hỗ trợ: Upload ảnh từ gallery (file input)
-
----
-
-#### [NEW] `js/pages/lookup.js` — Tra cứu AI
-
-- Input tên món ăn → Gọi Gemini Text API
-- Cùng format output như Camera AI
-- Lịch sử tra cứu gần đây (localStorage)
-- Debounce 1 giây khi gõ
-- Loading skeleton animation
-
----
-
-#### [NEW] `js/pages/profile.js` — Cá nhân hóa
-
-- Form nhập: Tên, Tuổi, Giới tính, Chiều cao (cm), Cân nặng (kg), Mức vận động
-- **Không có giá trị mặc định** — placeholder text hướng dẫn
-- Tính toán:
-  - **BMI** = cân nặng / (chiều cao m)² — Phân loại theo WHO
-  - **BMR** = Mifflin-St Jeor equation
-  - **TDEE** = BMR × Activity Factor
-  - **Nhu cầu nước** = cân nặng × 0.033 (L/ngày)
-  - **Phân bổ macro**: Carb 50-55%, Protein 15-20%, Fat 25-30% (theo khuyến nghị VN)
-- Hiển thị kết quả bằng gauge charts
-- Nút "AI Tư vấn thực đơn" → Gemini gợi ý dựa trên chỉ số
-
----
-
-#### [NEW] `js/pages/diary.js` — Nhật ký dinh dưỡng
-
-- Chọn ngày (date picker)
-- Thêm món thủ công (tên, calo, macro)
-- Thêm từ kết quả Camera AI / Tra cứu
-- Biểu đồ doughnut Macro (Chart.js)
-- Biểu đồ bar Calo thực tế vs TDEE mục tiêu
-- Tổng kết cuối ngày: thiếu/thừa chất gì
-- Nút xóa từng món
-
----
-
-#### [NEW] `js/pages/history.js` — Lịch sử & Thống kê
-
-- Xem nhật ký các ngày trước
-- Biểu đồ line 7 ngày gần nhất (calo/protein/fat/carb)
-- Trung bình calo/tuần
-- Nút Export JSON / Import JSON
-
----
-
-#### [MODIFY] `README.md` — Hướng dẫn đầy đủ
-
-Bao gồm:
-1. Giới thiệu đề tài KHKT
-2. Kiến trúc static site
-3. Hướng dẫn lấy API key Gemini (Google AI Studio)
-4. Hướng dẫn cấu hình + deploy GitHub Pages
-5. Giải thích bảo mật API key (trade-off static hosting)
-6. Công thức khoa học sử dụng (BMI, Mifflin-St Jeor, TDEE)
-7. Tài liệu tham khảo khoa học
-
----
-
-#### [NEW] `.gitignore`
-
-```
-js/config.js
-.DS_Store
-node_modules/
-```
-
----
-
-## Tính khoa học
-
-Các công thức được sử dụng (trích dẫn trong README + code comments):
-
-| Chỉ số | Công thức | Nguồn |
-|--------|-----------|-------|
-| **BMI** | W / H² (kg/m²) | WHO, 2000 |
-| **BMR (Nam)** | 10W + 6.25H - 5A + 5 | Mifflin-St Jeor, 1990 |
-| **BMR (Nữ)** | 10W + 6.25H - 5A - 161 | Mifflin-St Jeor, 1990 |
-| **TDEE** | BMR × Activity Factor | ACSM Guidelines |
-| **Nhu cầu nước** | 33ml/kg/ngày | EFSA, 2010 |
-| **Phân bổ macro** | Carb 50-55%, Protein 15-20%, Fat 25-30% | Viện Dinh Dưỡng Quốc Gia VN |
+Triển khai theo thứ tự này để mỗi PR có thể kiểm thử độc lập, giảm rủi ro một thay đổi lớn làm hỏng nhiều tính năng cùng lúc.
 
 ---
 
 ## Verification Plan
 
-### Automated Tests
-- Không có unit test framework (static site thuần) — kiểm tra thủ công
+### Automated (CI)
+
+- `gitleaks` — chặn merge nếu lộ secret.
+- `eslint` — chặn merge nếu lỗi cú pháp/logic rõ ràng.
+- `html-validate` — chặn merge nếu `index.html` không hợp lệ.
 
 ### Manual Verification
-1. Mở `index.html` trực tiếp trên trình duyệt → tất cả trang hoạt động
-2. Test Camera AI trên điện thoại (HTTPS required → dùng GitHub Pages)
-3. Test Tra cứu AI → nhập tên món → nhận kết quả từ Gemini
-4. Test BMI/TDEE calculator → nhập số liệu → kết quả đúng công thức
-5. Test Export/Import JSON → backup → xóa → restore
-6. Test Dark/Light theme toggle
-7. Test responsive trên mobile (Chrome DevTools)
-8. Deploy lên GitHub Pages → verify tất cả tính năng hoạt động
+
+1. Mở từng trong 6 trang sau khi thêm CSP — xác nhận Chart.js và Gemini API vẫn hoạt động (kiểm tra Console không có lỗi CSP violation).
+2. Test Camera AI trên điện thoại thật qua URL GitHub Pages (HTTPS bắt buộc cho `getUserMedia`).
+3. Ngắt mạng (DevTools → Network → Offline) → xác nhận App Shell vẫn mở, Nhật ký/Lịch sử cũ vẫn xem được, các nút gọi AI hiển thị thông báo "Cần kết nối mạng".
+4. Test migration: tạo dữ liệu giả ở format cũ (không có `schemaVersion`) → mở app mới → xác nhận dữ liệu được migrate, không mất.
+5. Test retry: giả lập lỗi mạng tạm thời (throttle trong DevTools) khi gọi Gemini → xác nhận app tự retry thay vì báo lỗi ngay lần đầu.
+6. Test giới hạn API key: gọi thử API key từ domain khác ngoài GitHub Pages đã khai báo → xác nhận bị Google từ chối (referrer restriction hoạt động).
+7. Deploy qua GitHub Actions → xác nhận toàn bộ 7 mục trên vẫn đúng trên bản production thật (không chỉ local).
 
 ---
 
-## Hướng dẫn lấy API Key Gemini
+## Hướng Dẫn Lấy API Key Gemini (giữ nguyên từ Giai đoạn 1)
 
-1. Truy cập [Google AI Studio](https://aistudio.google.com/apikey)
-2. Đăng nhập tài khoản Google
-3. Click "Create API Key" → chọn project hoặc tạo mới
-4. Copy API key
-5. Vào [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-   - Chọn API key vừa tạo → Edit
-   - **Application restrictions**: HTTP referrers → Thêm `QuocHung2008.github.io/*`
-   - **API restrictions**: Restrict key → Chỉ chọn "Generative Language API"
-   - Đặt quota: Queries per day = 100
-6. Tạo file `js/config.js` từ `js/config.example.js`, paste API key vào
-
+1. Truy cập [Google AI Studio](https://aistudio.google.com/apikey), đăng nhập, tạo API key.
+2. Vào [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials) → chọn key vừa tạo:
+   - **Application restrictions**: HTTP referrers → `QuocHung2008.github.io/*`
+   - **API restrictions**: Restrict key → chỉ chọn **Generative Language API**
+   - Đặt quota: Queries per day ≈ 100 (điều chỉnh theo nhu cầu thực tế)
+   - Bật budget alert dù đang dùng gói miễn phí
+3. Copy API key vào `js/config.js` (đã gitignored) hoặc nhập trực tiếp trong tab Hồ sơ của app.
