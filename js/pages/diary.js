@@ -8,11 +8,46 @@ const NF_PageDiary = (() => {
   let selectedDate = null;
   let macroChartInstance = null;
 
+  /**
+   * Cảnh báo tức thời so với TDEE — nổi bật khía cạnh "tư vấn" của ứng dụng.
+   * Ngưỡng: vượt >10% TDEE → cảnh báo dư; thiếu >30% TDEE → nhắc bổ sung; còn lại → cân đối.
+   */
+  function getTdeeAdvice(consumed, tdee) {
+    if (!tdee || tdee <= 0) return null;
+
+    const diff = consumed - tdee;
+    const overThreshold = tdee * 0.1;
+    const underThreshold = tdee * 0.3;
+
+    if (diff > overThreshold) {
+      return {
+        type: 'warning',
+        icon: 'fa-triangle-exclamation',
+        html: `Hôm nay bạn đã ăn dư <strong>${Math.round(diff)} kcal</strong> so với TDEE (${tdee} kcal). Hãy cân nhắc vận động thêm hoặc giảm khẩu phần bữa tiếp theo.`,
+      };
+    }
+    if (diff < -underThreshold && consumed > 0) {
+      return {
+        type: 'info',
+        icon: 'fa-circle-info',
+        html: `Bạn còn thiếu <strong>${Math.round(Math.abs(diff))} kcal</strong> so với mục tiêu TDEE (${tdee} kcal) hôm nay. Đừng bỏ bữa để đảm bảo đủ năng lượng học tập!`,
+      };
+    }
+    if (consumed === 0) return null; // Chưa ghi món nào thì chưa cần đưa ra nhận định
+
+    return {
+      type: 'success',
+      icon: 'fa-circle-check',
+      html: `Mức năng lượng hôm nay đang cân đối tốt với mục tiêu TDEE (${tdee} kcal).`,
+    };
+  }
+
   function render(container, date = null) {
     selectedDate = date || selectedDate || NF_Storage.getToday();
     const profile = NF_Storage.getProfile() || {};
     const tdee = profile.tdee || 2000;
     const summary = NF_Storage.getDiarySummary(selectedDate);
+    const tdeeAdvice = getTdeeAdvice(summary.totalCalories, tdee);
 
     const mealTypes = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
 
@@ -68,6 +103,13 @@ const NF_PageDiary = (() => {
                 <canvas id="diary-macro-chart"></canvas>
               </div>
             </div>
+
+            ${tdeeAdvice ? `
+              <div class="advice-box advice-box--${tdeeAdvice.type}" style="margin-bottom:var(--sp-3);">
+                <i class="fa-solid ${tdeeAdvice.icon}"></i>
+                ${tdeeAdvice.html}
+              </div>
+            ` : ''}
 
             <!-- Macro Legend Breakdown -->
             <div class="chart-legend">

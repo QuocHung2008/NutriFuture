@@ -22,6 +22,11 @@ const NF_App = (() => {
     // Tự động di chuyển dữ liệu cũ v1 nếu có
     NF_Storage.migrateFromV1();
 
+    // Khởi động vòng lặp nhắc nhở (uống nước / ghi nhật ký) nếu người dùng đã bật
+    if (typeof NF_Notifications !== 'undefined') {
+      NF_Notifications.init();
+    }
+
     // Lắng nghe sự kiện đổi hash
     window.addEventListener('hashchange', handleRoute);
 

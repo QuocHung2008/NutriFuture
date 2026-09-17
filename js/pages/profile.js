@@ -63,6 +63,11 @@ const NF_PageProfile = (() => {
       `<option value="${opt.value}" ${selectedModel === opt.value ? 'selected' : ''}>${opt.label}</option>`
     ).join('');
 
+    const notifSupported = NF_Notifications.isSupported();
+    const notifPermission = NF_Notifications.getPermission();
+    const notifEnabled = NF_Notifications.isEnabled();
+    const notifInterval = NF_Notifications.getIntervalHours();
+
     container.innerHTML = `
       <div class="page page--profile">
         <div class="page__header">
@@ -156,6 +161,48 @@ const NF_PageProfile = (() => {
             </button>
 
             <div id="ai-meal-plan-output" style="margin-top:var(--sp-3);"></div>
+          </div>
+
+          <!-- Notifications / Reminders Card -->
+          <div class="card" style="border:1px solid var(--slate-200);">
+            <h4 style="font-size:var(--fs-md); font-weight:800; margin-bottom:var(--sp-2);">
+              <i class="fa-solid fa-bell" style="color:var(--slate-600); margin-right:var(--sp-1);"></i> Nhắc nhở
+            </h4>
+
+            ${!notifSupported ? `
+              <p class="text-xs text-muted" style="line-height:1.5;">
+                ⚠️ Trình duyệt này không hỗ trợ thông báo (Notification API). Tính năng nhắc nhở sẽ không khả dụng.
+              </p>
+            ` : `
+              <p class="text-xs text-muted" style="margin-bottom:var(--sp-3); line-height:1.5;">
+                Nhắc uống nước định kỳ và nhắc ghi nhật ký bữa ăn nếu đến tối mà chưa ghi gì.
+                <em>Chỉ hoạt động khi ứng dụng đang mở trên trình duyệt/máy của bạn.</em>
+              </p>
+
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--sp-3); padding:var(--sp-2) var(--sp-3); background:var(--slate-50); border-radius:var(--radius-lg);">
+                <label for="toggle-notifications" style="font-weight:700; font-size:var(--fs-sm); cursor:pointer;">
+                  Bật nhắc nhở
+                </label>
+                <input type="checkbox" id="toggle-notifications" ${notifEnabled && notifPermission === 'granted' ? 'checked' : ''} style="width:1.25rem; height:1.25rem; cursor:pointer;" />
+              </div>
+
+              <div style="margin-bottom:var(--sp-2);">
+                <label class="card__label" for="select-notif-interval">NHẮC UỐNG NƯỚC MỖI</label>
+                <select id="select-notif-interval" class="search-bar__input" style="padding-left:var(--sp-3);">
+                  <option value="1" ${notifInterval == 1 ? 'selected' : ''}>1 giờ / lần</option>
+                  <option value="2" ${notifInterval == 2 ? 'selected' : ''}>2 giờ / lần</option>
+                  <option value="3" ${notifInterval == 3 ? 'selected' : ''}>3 giờ / lần</option>
+                </select>
+              </div>
+
+              <div id="notif-permission-status" class="text-xs" style="margin-top:var(--sp-2);">
+                ${notifPermission === 'denied'
+                  ? '<span style="color:var(--red-600, #dc2626);">🚫 Bạn đã chặn thông báo cho trang này — vào cài đặt trình duyệt để bật lại.</span>'
+                  : notifPermission === 'granted'
+                    ? '<span style="color:var(--green-600, #16a34a);">✅ Đã cấp quyền thông báo.</span>'
+                    : '<span class="text-muted">Chưa cấp quyền — bật công tắc ở trên để yêu cầu quyền thông báo.</span>'}
+              </div>
+            `}
           </div>
 
           <!-- Gemini Model Config Card -->
@@ -321,6 +368,41 @@ const NF_PageProfile = (() => {
       NF_UI.showToast('Đã lưu hồ sơ dinh dưỡng cá nhân thành công!', 'success');
       updateMetricsDisplay(container);
     };
+
+    // Toggle Bật/Tắt nhắc nhở (yêu cầu quyền thông báo nếu cần)
+    const toggleNotif = container.querySelector('#toggle-notifications');
+    const notifStatusEl = container.querySelector('#notif-permission-status');
+    if (toggleNotif) {
+      toggleNotif.onchange = async () => {
+        if (toggleNotif.checked) {
+          const perm = await NF_Notifications.requestPermission();
+          if (perm !== 'granted') {
+            toggleNotif.checked = false;
+            NF_UI.showToast('Bạn cần cấp quyền thông báo để bật tính năng này', 'warning');
+            if (notifStatusEl) {
+              notifStatusEl.innerHTML = perm === 'denied'
+                ? '<span style="color:var(--red-600, #dc2626);">🚫 Bạn đã chặn thông báo cho trang này — vào cài đặt trình duyệt để bật lại.</span>'
+                : '<span class="text-muted">Chưa cấp quyền — bật công tắc ở trên để yêu cầu quyền thông báo.</span>';
+            }
+            return;
+          }
+          NF_Notifications.setEnabled(true);
+          if (notifStatusEl) notifStatusEl.innerHTML = '<span style="color:var(--green-600, #16a34a);">✅ Đã cấp quyền thông báo.</span>';
+          NF_UI.showToast('Đã bật nhắc nhở!', 'success');
+        } else {
+          NF_Notifications.setEnabled(false);
+          NF_UI.showToast('Đã tắt nhắc nhở', 'info');
+        }
+      };
+    }
+
+    const selectNotifInterval = container.querySelector('#select-notif-interval');
+    if (selectNotifInterval) {
+      selectNotifInterval.onchange = () => {
+        NF_Notifications.setIntervalHours(Number(selectNotifInterval.value));
+        NF_UI.showToast('Đã cập nhật tần suất nhắc uống nước!', 'success');
+      };
+    }
 
     // Dropdown chọn Model Gemini
     const selectModel = container.querySelector('#select-gemini-model');

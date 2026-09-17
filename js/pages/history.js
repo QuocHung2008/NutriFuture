@@ -273,7 +273,7 @@ const NF_PageHistory = (() => {
         reader.onload = (event) => {
           const res = NF_Storage.importData(event.target.result);
           if (res.success) {
-            NF_UI.showToast('Khôi phục dữ liệu thành công!', 'success');
+            NF_UI.showToast(res.note || 'Khôi phục dữ liệu thành công!', 'success');
             render(container);
           } else {
             NF_UI.showToast(`Khôi phục thất bại: ${res.error}`, 'error');

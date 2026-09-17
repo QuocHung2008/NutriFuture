@@ -210,34 +210,100 @@ const NF_Storage = (() => {
     URL.revokeObjectURL(url);
   }
 
+  /**
+   * Nhập dữ liệu backup theo cơ chế switch-case theo version, cho phép mở rộng
+   * hỗ trợ nhiều định dạng backup cũ mà không cần đổi hàm gọi ở nơi khác.
+   * Thêm định dạng mới trong tương lai: thêm 1 case + hàm _importVN() riêng.
+   */
   function importData(jsonString) {
     try {
       const data = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
-      
-      if (data.version !== 2) {
-        throw new Error('Phiên bản backup không tương thích');
-      }
+      const version = data.version;
 
-      if (data.profile) saveProfile(data.profile);
-      if (data.onboarded) setOnboarded();
-      if (data.lookupHistory) _set(KEYS.LOOKUP_HISTORY, data.lookupHistory);
-
-      if (data.diary) {
-        Object.entries(data.diary).forEach(([date, entries]) => {
-          _set(KEYS.DIARY_PREFIX + date, entries);
-        });
+      switch (version) {
+        case 2:
+          return _importV2(data);
+        case 1:
+          return _importV1Backup(data);
+        default:
+          throw new Error(
+            `Phiên bản backup không được hỗ trợ (version=${version ?? 'không xác định'}). ` +
+            `Vui lòng dùng file backup được xuất từ chính ứng dụng NutriFuture.`
+          );
       }
-      if (data.water) {
-        Object.entries(data.water).forEach(([date, amount]) => {
-          localStorage.setItem(KEYS.WATER_PREFIX + date, String(amount));
-        });
-      }
-
-      return { success: true };
     } catch (e) {
       console.error('[Storage] Import error:', e);
       return { success: false, error: e.message };
     }
+  }
+
+  /** Định dạng backup hiện tại (v2): dữ liệu diary/water tách theo từng ngày */
+  function _importV2(data) {
+    if (data.profile) saveProfile(data.profile);
+    if (data.onboarded) setOnboarded();
+    if (data.lookupHistory) _set(KEYS.LOOKUP_HISTORY, data.lookupHistory);
+
+    if (data.diary) {
+      Object.entries(data.diary).forEach(([date, entries]) => {
+        _set(KEYS.DIARY_PREFIX + date, entries);
+      });
+    }
+    if (data.water) {
+      Object.entries(data.water).forEach(([date, amount]) => {
+        localStorage.setItem(KEYS.WATER_PREFIX + date, String(amount));
+      });
+    }
+
+    return { success: true, migratedFrom: 2 };
+  }
+
+  /**
+   * Định dạng backup v1 (bản mobile cũ trước khi tách diary theo ngày):
+   * { version: 1, user: {...}, diary: [...] } — không có nước uống theo ngày.
+   * Toàn bộ món ăn trong backup sẽ được gộp vào ngày hôm nay lúc import.
+   */
+  function _importV1Backup(data) {
+    if (data.user) {
+      saveProfile({
+        name: data.user.name || '',
+        age: data.user.age || 17,
+        gender: data.user.gender || 'male',
+        height: data.user.height || 0,
+        weight: data.user.weight || 0,
+        activity: data.user.activity || 1.55,
+        bmi: data.user.bmi || 0,
+        tdee: data.user.tdee || 0,
+        waterMl: data.user.waterTarget ? Math.round(data.user.waterTarget * 1000) : 2000,
+      });
+      setOnboarded();
+    }
+
+    if (Array.isArray(data.diary) && data.diary.length > 0) {
+      const today = _dateKey();
+      const existing = getDiary(today);
+      data.diary.forEach((item) => {
+        existing.push({
+          id: item.id || Date.now() + Math.random(),
+          name: item.name,
+          calories: item.calories || 0,
+          protein: item.protein || 0,
+          fat: item.fat || 0,
+          carb: item.carb || 0,
+          fiber: 0,
+          mealType: item.mealType || 'Khác',
+          time: item.time || '',
+          source: 'imported_v1',
+          createdAt: new Date().toISOString(),
+        });
+      });
+      saveDiary(today, existing);
+    }
+
+    return {
+      success: true,
+      migratedFrom: 1,
+      note: 'Backup v1 không có phân chia theo ngày — toàn bộ món ăn đã được gộp vào hôm nay.',
+    };
   }
 
   /* ─── Migration từ v1 ─── */
