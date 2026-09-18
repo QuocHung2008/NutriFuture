@@ -378,6 +378,7 @@ const NF_PageProfile = (() => {
 
       // Lần đầu onboarding: sau khi lưu xong, đưa người dùng vào Trang chủ để bắt đầu dùng app
       if (isOnboarding) {
+        if (window.NF_Motion) NF_Motion.celebrate();
         setTimeout(() => { window.location.hash = '#home'; }, 900);
       }
     };

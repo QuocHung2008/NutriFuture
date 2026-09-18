@@ -224,12 +224,21 @@ const NF_PageHome = (() => {
         const newWater = NF_Storage.addWater(250, todayStr);
         const waterValEl = container.querySelector('#home-water-val');
         const waterProgEl = container.querySelector('#home-water-progress');
+        const reachedGoal = newWater >= waterTarget && (newWater - 250) < waterTarget;
         if (waterValEl) waterValEl.textContent = newWater;
         if (waterProgEl) {
           const pct = Math.min(Math.round((newWater / waterTarget) * 100), 100);
           waterProgEl.style.width = pct + '%';
         }
-        NF_UI.showToast(`Đã thêm 250ml nước (+250ml)!`, 'info');
+        if (window.gsap) {
+          gsap.fromTo(waterBtn, { scale: 1 }, { scale: 1.12, duration: 0.16, yoyo: true, repeat: 1, ease: 'power2.out' });
+        }
+        if (reachedGoal && window.NF_Motion) {
+          NF_Motion.celebrate();
+          NF_UI.showToast('Tuyệt vời! Bạn đã đạt mục tiêu nước hôm nay 💧🎉', 'success');
+        } else {
+          NF_UI.showToast(`Đã thêm 250ml nước (+250ml)!`, 'info');
+        }
       };
     }
   }

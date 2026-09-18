@@ -98,6 +98,12 @@ const NF_App = (() => {
     } else {
       pageHandler.render(contentContainer);
     }
+
+    // Hiệu ứng vào trang (GSAP entrance + ScrollTrigger reveal) — an toàn nếu thư viện
+    // chưa tải xong hoặc bị chặn mạng, NF_Motion tự bỏ qua.
+    if (window.NF_Motion) {
+      NF_Motion.animatePage(contentContainer);
+    }
   }
 
   function setupNav() {
