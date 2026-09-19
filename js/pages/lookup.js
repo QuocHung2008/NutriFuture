@@ -9,7 +9,8 @@ const NF_PageLookup = (() => {
 
   function render(container) {
     currentResult = null;
-    const history = NF_Storage.getLookupHistory();
+    const fullHistory = NF_Storage.getLookupHistory();
+    const history = fullHistory.slice(0, 3); // Chỉ hiển thị 3 kết quả gần nhất
     const hasApiKey = NF_Gemini.isConfigured();
 
     const popularChips = [
@@ -88,7 +89,7 @@ const NF_PageLookup = (() => {
               <!-- History Section -->
               <div class="card" id="lookup-history-section">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-3);">
-              <div class="section-label" style="margin-bottom:0;">LỊCH SỬ TRA CỨU GẦN ĐÂY</div>
+              <div class="section-label" style="margin-bottom:0;">LỊCH SỬ TRA CỨU (3 GẦN NHẤT)</div>
               ${history.length > 0 ? `
                 <button class="btn btn--outline btn--sm" id="btn-clear-history" style="font-size:var(--fs-xs); padding:0.125rem 0.5rem;">
                   <i class="fa-solid fa-trash-can"></i> Xóa lịch sử

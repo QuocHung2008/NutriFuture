@@ -85,15 +85,15 @@ const NF_PageDiary = (() => {
             <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
               <!-- Day Summary & Chart Card -->
               <div class="card card--glass">
-            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:var(--sp-3);">
-              <div>
+            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:var(--sp-2); margin-bottom:var(--sp-3);">
+              <div style="min-width:0;">
                 <div class="card__label" id="diary-date-label"></div>
-                <div style="display:flex; align-items:baseline; gap:0.25rem;">
+                <div style="display:flex; align-items:baseline; gap:0.25rem; flex-wrap:wrap;">
                   <span class="stat-card__value" id="diary-total-cal">0</span>
                   <span class="stat-card__unit" id="diary-tdee-unit"></span>
                 </div>
               </div>
-              <span class="tag" id="diary-tdee-tag"></span>
+              <span class="tag" id="diary-tdee-tag" style="white-space:nowrap;"></span>
             </div>
 
             <!-- Canvas Chart Container -->
@@ -283,8 +283,8 @@ const NF_PageDiary = (() => {
 
     const dataValues = hasData ? [c, p, f] : [1, 1, 1];
     const dataColors = hasData
-      ? ['#1b2a4a', '#a8873f', '#6b2d3c']
-      : ['#ddd6c7', '#ddd6c7', '#ddd6c7'];
+      ? ['#054fd4', '#12b76a', '#f5a524']
+      : ['#e3e3e3', '#e3e3e3', '#e3e3e3'];
 
     if (macroChartInstance) {
       // Chỉ cập nhật dữ liệu + màu, không destroy/recreate → mượt hơn, đỡ tốn CPU/GPU
@@ -304,7 +304,7 @@ const NF_PageDiary = (() => {
           data: dataValues,
           backgroundColor: dataColors,
           borderWidth: 2,
-          borderColor: '#fdfbf7',
+          borderColor: '#ffffff',
           hoverOffset: 4
         }]
       },

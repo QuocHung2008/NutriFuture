@@ -107,8 +107,17 @@ const NF_PageCamera = (() => {
             </div>
           </div>
 
-          <!-- Kết quả phân tích: trượt lên như bottom sheet -->
-          <div class="camera-result-sheet" id="camera-result-container"></div>
+          <!-- Kết quả phân tích: trượt lên như bottom sheet, kính mờ, vuốt để thu gọn -->
+          <div class="camera-result-sheet" id="camera-result-container">
+            <div class="camera-result-sheet__handle" id="sheet-drag-handle">
+              <span class="camera-result-sheet__grip"></span>
+              <span class="camera-result-sheet__peek-label" id="sheet-peek-label">Kết quả phân tích AI</span>
+              <button class="camera-result-sheet__toggle" id="btn-sheet-toggle" title="Thu gọn / Mở rộng" aria-label="Thu gọn hoặc mở rộng bảng kết quả">
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+            </div>
+            <div class="camera-result-sheet__body" id="camera-result-body"></div>
+          </div>
         </div>
       </div>
     `;
@@ -330,11 +339,12 @@ const NF_PageCamera = (() => {
       previewImg.style.display = 'none';
       placeholder.style.display = 'flex';
 
-      const resultBox = container.querySelector('#camera-result-container');
-      if (resultBox) {
-        resultBox.innerHTML = '';
-        resultBox.classList.remove('is-open');
-      }
+      const sheet = container.querySelector('#camera-result-container');
+      const resultBody = container.querySelector('#camera-result-body');
+      const peekLabel = container.querySelector('#sheet-peek-label');
+      if (sheet) sheet.classList.remove('is-open', 'is-peek');
+      if (resultBody) resultBody.innerHTML = '';
+      if (peekLabel) peekLabel.textContent = 'Kết quả phân tích AI';
 
       controlsRetake.classList.add('hidden');
       controlsStart.classList.remove('hidden');
@@ -346,11 +356,16 @@ const NF_PageCamera = (() => {
         analyzeCurrentPhoto(container);
       }
     };
+
+    // Kích hoạt vuốt để thu gọn / mở rộng bảng kết quả
+    initResultSheetDrag(container);
   }
 
   async function analyzeCurrentPhoto(container) {
     const scannerOverlay = container.querySelector('#scanner-overlay');
-    const resultBox = container.querySelector('#camera-result-container');
+    const sheet = container.querySelector('#camera-result-container');
+    const resultBody = container.querySelector('#camera-result-body');
+    const peekLabel = container.querySelector('#sheet-peek-label');
 
     if (!NF_Gemini.isConfigured()) {
       showApiKeyModal();
@@ -363,26 +378,29 @@ const NF_PageCamera = (() => {
     }
 
     scannerOverlay.classList.remove('hidden');
-    resultBox.classList.remove('is-open');
-    resultBox.innerHTML = `
+    sheet.classList.remove('is-peek');
+    if (peekLabel) peekLabel.textContent = 'Đang phân tích...';
+    resultBody.innerHTML = `
       <div class="loading-container">
         <div class="loading-spinner"></div>
         <p class="loading-text">Gemini Vision AI đang nhận diện món ăn & ước tính dinh dưỡng...</p>
       </div>
     `;
-    requestAnimationFrame(() => resultBox.classList.add('is-open'));
+    requestAnimationFrame(() => sheet.classList.add('is-open'));
 
     try {
       const data = await NF_Gemini.analyzeImage(capturedBase64);
       lastAnalysisResult = data;
       scannerOverlay.classList.add('hidden');
-      renderResult(resultBox, data);
+      renderResult(resultBody, data);
+      if (peekLabel) peekLabel.textContent = `${data.name} • ${data.calories} kcal`;
       NF_UI.showToast(`Đã nhận diện thành công: ${NF_UI.escapeHtml(data.name)}!`, 'success');
     } catch (err) {
       console.error('Analyze error:', err);
       scannerOverlay.classList.add('hidden');
+      if (peekLabel) peekLabel.textContent = 'Không thể phân tích ảnh';
       const msg = NF_Gemini.getErrorMessage(err);
-      resultBox.innerHTML = `
+      resultBody.innerHTML = `
         <div class="advice-box advice-box--warning">
           <div style="font-weight:700; margin-bottom:var(--sp-1);">
             <i class="fa-solid fa-triangle-exclamation"></i> Không thể phân tích ảnh
@@ -399,11 +417,104 @@ const NF_PageCamera = (() => {
         </div>
       `;
 
-      const retryBtn = resultBox.querySelector('#btn-retry-err');
+      const retryBtn = resultBody.querySelector('#btn-retry-err');
       if (retryBtn) retryBtn.onclick = () => analyzeCurrentPhoto(container);
 
-      const configBtn = resultBox.querySelector('#btn-open-config-err');
+      const configBtn = resultBody.querySelector('#btn-open-config-err');
       if (configBtn) configBtn.onclick = showApiKeyModal;
+    }
+  }
+
+  /**
+   * Cho phép vuốt tay cầm của bảng kết quả để thu gọn (peek) hoặc mở rộng
+   * (open) — đồng thời bấm nút chevron hoặc chạm nhẹ vào tay cầm cũng có
+   * tác dụng tương tự. Nhờ đó ảnh món ăn phía sau không bao giờ bị che kín
+   * hoàn toàn và người dùng luôn có cách ẩn bảng đi.
+   */
+  function initResultSheetDrag(container) {
+    const sheet = container.querySelector('#camera-result-container');
+    const handle = container.querySelector('#sheet-drag-handle');
+    const toggleBtn = container.querySelector('#btn-sheet-toggle');
+    if (!sheet || !handle) return;
+
+    const isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
+
+    let dragging = false;
+    let startPos = 0;
+    let startTime = 0;
+    let lastDelta = 0;
+    let moved = false;
+
+    const getSheetExtent = () => (isDesktop() ? sheet.getBoundingClientRect().width : sheet.getBoundingClientRect().height);
+
+    const setDragTransform = (delta) => {
+      const clamped = Math.max(0, delta); // chỉ cho kéo theo chiều thu gọn
+      sheet.style.transform = isDesktop() ? `translateX(${clamped}px)` : `translateY(${clamped}px)`;
+    };
+
+    const settle = (shouldPeek) => {
+      sheet.style.transform = '';
+      sheet.classList.remove('is-dragging');
+      sheet.classList.toggle('is-peek', shouldPeek);
+      sheet.classList.toggle('is-open', !shouldPeek);
+    };
+
+    const onPointerDown = (e) => {
+      if (!sheet.classList.contains('is-open') && !sheet.classList.contains('is-peek')) return;
+      dragging = true;
+      moved = false;
+      startPos = isDesktop() ? e.clientX : e.clientY;
+      startTime = Date.now();
+      lastDelta = 0;
+      sheet.classList.add('is-dragging');
+      handle.setPointerCapture && handle.setPointerCapture(e.pointerId);
+    };
+
+    const onPointerMove = (e) => {
+      if (!dragging) return;
+      const pos = isDesktop() ? e.clientX : e.clientY;
+      const delta = pos - startPos;
+      if (Math.abs(delta) > 4) moved = true;
+      lastDelta = delta;
+      setDragTransform(delta);
+    };
+
+    const onPointerUp = () => {
+      if (!dragging) return;
+      dragging = false;
+
+      if (!moved) {
+        // Chạm nhẹ (không kéo) → coi như bấm nút thu gọn/mở rộng
+        sheet.style.transform = '';
+        sheet.classList.remove('is-dragging');
+        const nowPeek = sheet.classList.contains('is-open');
+        sheet.classList.toggle('is-peek', nowPeek);
+        sheet.classList.toggle('is-open', !nowPeek);
+        return;
+      }
+
+      const elapsed = Math.max(Date.now() - startTime, 1);
+      const velocity = lastDelta / elapsed; // px/ms
+      const extent = getSheetExtent() || 1;
+      const draggedRatio = lastDelta / extent;
+
+      // Vuốt đủ xa hoặc đủ nhanh theo chiều thu gọn → chuyển sang Peek
+      const shouldPeek = draggedRatio > 0.22 || velocity > 0.5;
+      settle(shouldPeek);
+    };
+
+    handle.addEventListener('pointerdown', onPointerDown);
+    handle.addEventListener('pointermove', onPointerMove);
+    handle.addEventListener('pointerup', onPointerUp);
+    handle.addEventListener('pointercancel', onPointerUp);
+
+    if (toggleBtn) {
+      toggleBtn.onclick = (e) => {
+        e.stopPropagation();
+        const nowPeek = sheet.classList.contains('is-open');
+        sheet.classList.toggle('is-peek', nowPeek);
+        sheet.classList.toggle('is-open', !nowPeek);
+      };
     }
   }
 

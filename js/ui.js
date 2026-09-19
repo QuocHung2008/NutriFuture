@@ -181,14 +181,17 @@ const NF_UI = (() => {
   /* ─── BMI Classification (WHO) ─── */
 
   function getBMIClass(bmi) {
+    // Ngưỡng phân loại BMI dành riêng cho người châu Á (WHO Western Pacific
+    // Region, 2000) — chính xác hơn ngưỡng chuẩn phương Tây (25/30) cho thể
+    // trạng học sinh Việt Nam, vốn có nguy cơ chuyển hóa cao hơn ở cùng mức BMI.
     if (bmi < 16) return { label: 'Gầy độ III', color: 'danger', icon: 'fa-arrow-down' };
     if (bmi < 17) return { label: 'Gầy độ II', color: 'warning', icon: 'fa-arrow-down' };
     if (bmi < 18.5) return { label: 'Thiếu cân', color: 'warning', icon: 'fa-arrow-down' };
-    if (bmi < 25) return { label: 'Bình thường', color: 'success', icon: 'fa-check' };
-    if (bmi < 30) return { label: 'Thừa cân', color: 'warning', icon: 'fa-arrow-up' };
-    if (bmi < 35) return { label: 'Béo phì I', color: 'danger', icon: 'fa-arrow-up' };
-    if (bmi < 40) return { label: 'Béo phì II', color: 'danger', icon: 'fa-arrow-up' };
-    return { label: 'Béo phì III', color: 'danger', icon: 'fa-arrow-up' };
+    if (bmi < 23) return { label: 'Bình thường', color: 'success', icon: 'fa-check' };
+    if (bmi < 25) return { label: 'Thừa cân (nguy cơ)', color: 'warning', icon: 'fa-arrow-up' };
+    if (bmi < 30) return { label: 'Béo phì độ I', color: 'danger', icon: 'fa-arrow-up' };
+    if (bmi < 35) return { label: 'Béo phì độ II', color: 'danger', icon: 'fa-arrow-up' };
+    return { label: 'Béo phì độ III', color: 'danger', icon: 'fa-arrow-up' };
   }
 
   /* ─── Meal Type Icons ─── */

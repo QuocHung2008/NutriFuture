@@ -32,8 +32,18 @@ const NF_PageProfile = (() => {
     // TDEE = BMR * Activity Factor
     const tdee = Math.round(bmr * activity);
 
-    // Nhu cầu nước: 33ml / kg thể trọng
-    const waterMl = Math.round(weight * 33);
+    // Nhu cầu nước: dựa trên cân nặng VÀ mức độ vận động (mất nước qua mồ hôi
+    // tăng theo cường độ hoạt động) — theo khuyến nghị EFSA/ACSM, học sinh
+    // vận động càng nhiều thì hệ số ml/kg càng cao thay vì áp dụng cố định.
+    const waterFactorByActivity = {
+      1.2:   30, // Ít vận động
+      1.375: 33, // Vận động nhẹ
+      1.55:  35, // Vừa phải
+      1.725: 38, // Năng động
+      1.9:   40, // Cực kỳ năng động
+    };
+    const waterFactor = waterFactorByActivity[activity] || 33;
+    const waterMl = Math.round(weight * waterFactor);
 
     // Phân bổ Macro theo Viện Dinh Dưỡng VN cho học sinh THPT:
     // Carb: 55% TDEE (1g carb = 4 kcal)
@@ -77,7 +87,7 @@ const NF_PageProfile = (() => {
           <p class="text-sm text-muted">Nhập thông tin thể chất của bạn — máy sẽ tự động tính toán chỉ số chuẩn y khoa</p>
         </div>
 
-        <div class="page__body grid-2-desktop">
+        <div class="page__body profile-grid">
           ${isOnboarding ? `
             <div class="advice-box advice-box--info" style="grid-column:1 / -1;">
               <i class="fa-solid fa-hand-sparkles"></i>
@@ -86,7 +96,7 @@ const NF_PageProfile = (() => {
             </div>
           ` : ''}
           <!-- Cột trái: Form nhập -->
-          <div>
+          <div class="profile-grid__form">
             <!-- Profile Form Card -->
             <div class="card card--glass">
             <h3 style="font-size:var(--fs-lg); font-weight:800; margin-bottom:var(--sp-3);">
@@ -147,16 +157,16 @@ const NF_PageProfile = (() => {
             </form>
           </div>
         </div> <!-- Close left column -->
-          <!-- Cột phải: Chỉ số & Các khối chức năng khác -->
-          <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
-            <!-- Real-time Computed Physical Metrics Card -->
-            <div class="card" id="profile-metrics-display">
+          <!-- Cột phải: các khối chức năng xếp dạng bento — to nhỏ hợp lý, đều như lego -->
+          <div class="bento-grid">
+            <!-- Real-time Computed Physical Metrics: populated dynamically as 3 small cards + 1 large macro card -->
+            <div id="profile-metrics-display" style="display:contents;">
               <!-- Populated dynamically -->
             </div>
 
           <!-- AI Meal Plan Recommendation Section -->
-          <div class="card card--glass" id="profile-ai-meal-plan-card">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-3);">
+          <div class="bento-card bento-card--s6 bento-card--accent" id="profile-ai-meal-plan-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-3); flex-wrap:wrap; gap:var(--sp-2);">
               <div>
                 <span class="tag tag--primary" style="margin-bottom:var(--sp-1);">AI Gemini Flash</span>
                 <h3 style="font-size:var(--fs-lg); font-weight:800;">Tư vấn Thực đơn 1 Ngày</h3>
@@ -172,10 +182,8 @@ const NF_PageProfile = (() => {
           </div>
 
           <!-- Notifications / Reminders Card -->
-          <div class="card" style="border:1px solid var(--slate-200);">
-            <h4 style="font-size:var(--fs-md); font-weight:800; margin-bottom:var(--sp-2);">
-              <i class="fa-solid fa-bell" style="color:var(--slate-600); margin-right:var(--sp-1);"></i> Nhắc nhở
-            </h4>
+          <div class="bento-card bento-card--s3">
+            <div class="bento-card__title"><i class="fa-solid fa-bell"></i> Nhắc nhở</div>
 
             ${!notifSupported ? `
               <p class="text-xs text-muted" style="line-height:1.5;">
@@ -205,19 +213,17 @@ const NF_PageProfile = (() => {
 
               <div id="notif-permission-status" class="text-xs" style="margin-top:var(--sp-2);">
                 ${notifPermission === 'denied'
-                  ? '<span style="color:var(--red-600, #dc2626);">🚫 Bạn đã chặn thông báo cho trang này — vào cài đặt trình duyệt để bật lại.</span>'
+                  ? '<span style="color:var(--rose-600);">🚫 Bạn đã chặn thông báo cho trang này — vào cài đặt trình duyệt để bật lại.</span>'
                   : notifPermission === 'granted'
-                    ? '<span style="color:var(--green-600, #16a34a);">✅ Đã cấp quyền thông báo.</span>'
+                    ? '<span style="color:var(--green-600);">✅ Đã cấp quyền thông báo.</span>'
                     : '<span class="text-muted">Chưa cấp quyền — bật công tắc ở trên để yêu cầu quyền thông báo.</span>'}
               </div>
             `}
           </div>
 
           <!-- Gemini Model Config Card -->
-          <div class="card" style="border:1px solid var(--slate-200);">
-            <h4 style="font-size:var(--fs-md); font-weight:800; margin-bottom:var(--sp-2);">
-              <i class="fa-solid fa-brain" style="color:var(--slate-600); margin-right:var(--sp-1);"></i> Cấu hình AI Gemini
-            </h4>
+          <div class="bento-card bento-card--s3">
+            <div class="bento-card__title"><i class="fa-solid fa-brain"></i> Cấu hình AI Gemini</div>
             <p class="text-xs text-muted" style="margin-bottom:var(--sp-3); line-height:1.5;">
               ${hasApiKey
                 ? 'API Key đã được cấu hình sẵn cho ứng dụng — bạn chỉ cần chọn model AI muốn dùng bên dưới.'
@@ -232,11 +238,11 @@ const NF_PageProfile = (() => {
             </div>
 
             <!-- Connection test row -->
-            <div style="display:flex; gap:var(--sp-2); align-items:center; margin-bottom:var(--sp-2);">
-              <button class="btn btn--outline btn--sm" id="btn-test-connection" style="flex:1;">
-                <i class="fa-solid fa-plug-circle-check"></i> Kiểm tra kết nối
+            <div style="display:flex; flex-wrap:wrap; gap:var(--sp-2); align-items:center; margin-bottom:var(--sp-2);">
+              <button class="btn btn--outline btn--sm" id="btn-test-connection" style="flex:1 1 10rem; white-space:nowrap;">
+                <i class="fa-solid fa-plug-circle-check"></i> Kiểm tra
               </button>
-              <button class="btn btn--outline btn--sm" id="btn-reset-model-cache" title="Xóa cache model đã lưu để thử lại">
+              <button class="btn btn--outline btn--sm" id="btn-reset-model-cache" title="Xóa cache model đã lưu để thử lại" style="flex:1 1 7rem; white-space:nowrap;">
                 <i class="fa-solid fa-rotate"></i> Làm mới
               </button>
             </div>
@@ -279,10 +285,10 @@ const NF_PageProfile = (() => {
 
     if (!metrics) {
       displayEl.innerHTML = `
-        <div style="text-align:center; padding:var(--sp-4) 0; color:var(--slate-400);">
-          <i class="fa-solid fa-calculator" style="font-size:1.75rem; margin-bottom:var(--sp-2); display:block; opacity:0.6;"></i>
-          <div style="font-weight:700; color:var(--slate-600); margin-bottom:0.25rem;">Chưa đủ thông tin tính toán</div>
-          <p class="text-xs">Vui lòng nhập đầy đủ Tuổi, Giới tính, Chiều cao và Cân nặng ở trên để máy tự động tính toán chỉ số.</p>
+        <div class="bento-card bento-card--s6" style="text-align:center; padding:var(--sp-6) var(--sp-4);">
+          <i class="fa-solid fa-calculator" style="font-size:1.75rem; margin-bottom:var(--sp-2); display:block; color:var(--primary-300);"></i>
+          <div style="font-weight:800; color:var(--ink-soft); margin-bottom:0.25rem;">Chưa đủ thông tin tính toán</div>
+          <p class="text-xs text-muted">Vui lòng nhập đầy đủ Tuổi, Giới tính, Chiều cao và Cân nặng ở trên để máy tự động tính toán chỉ số.</p>
         </div>
       `;
       return;
@@ -291,55 +297,51 @@ const NF_PageProfile = (() => {
     const bmiInfo = NF_UI.getBMIClass(metrics.bmi);
 
     displayEl.innerHTML = `
-      <div class="section-label" style="margin-bottom:var(--sp-2);">KẾT QUẢ TÍNH TOÁN KHOA HỌC</div>
-      <div class="metric-grid" style="margin-bottom:var(--sp-3);">
-        <div class="metric-card metric-card--bmi">
-          <div class="metric-card__label">Chỉ số BMI (WHO)</div>
-          <div class="metric-card__value">${metrics.bmi}</div>
-          <div class="metric-card__extra">
-            <span class="bmi-badge bmi-badge--${bmiInfo.color}">
-              <i class="fa-solid ${bmiInfo.icon}"></i> ${bmiInfo.label}
-            </span>
-          </div>
-        </div>
-
-        <div class="metric-card metric-card--tdee">
-          <div class="metric-card__label">TDEE (Năng lượng)</div>
-          <div class="metric-card__value">${metrics.tdee}</div>
-          <div class="metric-card__extra" style="color:var(--amber-700);">kcal / ngày</div>
-        </div>
-
-        <div class="metric-card metric-card--water">
-          <div class="metric-card__label">Nhu cầu Nước</div>
-          <div class="metric-card__value">${(metrics.waterMl / 1000).toFixed(1)}</div>
-          <div class="metric-card__extra" style="color:var(--sky-700);">Lít / ngày</div>
+      <div class="metric-card metric-card--bmi bento-card--s2">
+        <div class="metric-card__label">BMI (chuẩn Á)</div>
+        <div class="metric-card__value">${metrics.bmi}</div>
+        <div class="metric-card__extra">
+          <span class="bmi-badge bmi-badge--${bmiInfo.color}">
+            <i class="fa-solid ${bmiInfo.icon}"></i> ${bmiInfo.label}
+          </span>
         </div>
       </div>
 
+      <div class="metric-card metric-card--tdee bento-card--s2">
+        <div class="metric-card__label">TDEE</div>
+        <div class="metric-card__value">${metrics.tdee}</div>
+        <div class="metric-card__extra" style="color:var(--amber-700);">kcal / ngày</div>
+      </div>
+
+      <div class="metric-card metric-card--water bento-card--s2">
+        <div class="metric-card__label">Nhu cầu Nước</div>
+        <div class="metric-card__value">${(metrics.waterMl / 1000).toFixed(1)}</div>
+        <div class="metric-card__extra" style="color:var(--sky-700);">Lít / ngày</div>
+      </div>
+
       <!-- Macro split recommendations -->
-      <div style="background:var(--slate-50); border:1px solid var(--slate-200); border-radius:var(--radius-xl); padding:var(--sp-3);">
-        <div class="card__label" style="margin-bottom:var(--sp-2);">PHÂN BỔ DINH DƯỠNG KHUYẾN NGHỊ (THEO VIỆN DINH DƯỠNG VN)</div>
-        <div class="nutrient-grid" style="grid-template-columns:repeat(3, 1fr);">
+      <div class="bento-card bento-card--s6">
+        <div class="card__label" style="margin-bottom:var(--sp-3);">PHÂN BỔ DINH DƯỠNG KHUYẾN NGHỊ (VIỆN DINH DƯỠNG VN)</div>
+        <div class="nutrient-grid">
           <div class="nutrient-box">
             <div class="nutrient-box__label">Carb (55%)</div>
-            <div class="nutrient-box__value" style="color:var(--blue-600);">${metrics.carbGrams}g</div>
-            <div class="text-xs text-muted" style="font-size:0.625rem; margin-top:0.125rem;">~${Math.round(metrics.tdee * 0.55)} kcal</div>
+            <div class="nutrient-box__value" style="color:var(--primary-600);">${metrics.carbGrams}g</div>
+            <div class="text-xs text-muted" style="font-size:0.6875rem; margin-top:0.125rem;">~${Math.round(metrics.tdee * 0.55)} kcal</div>
           </div>
           <div class="nutrient-box">
             <div class="nutrient-box__label">Protein (18%)</div>
-            <div class="nutrient-box__value" style="color:var(--primary-600);">${metrics.proteinGrams}g</div>
-            <div class="text-xs text-muted" style="font-size:0.625rem; margin-top:0.125rem;">~${Math.round(metrics.tdee * 0.18)} kcal</div>
+            <div class="nutrient-box__value" style="color:var(--green-600);">${metrics.proteinGrams}g</div>
+            <div class="text-xs text-muted" style="font-size:0.6875rem; margin-top:0.125rem;">~${Math.round(metrics.tdee * 0.18)} kcal</div>
           </div>
           <div class="nutrient-box">
             <div class="nutrient-box__label">Fat (27%)</div>
             <div class="nutrient-box__value" style="color:var(--amber-600);">${metrics.fatGrams}g</div>
-            <div class="text-xs text-muted" style="font-size:0.625rem; margin-top:0.125rem;">~${Math.round(metrics.tdee * 0.27)} kcal</div>
+            <div class="text-xs text-muted" style="font-size:0.6875rem; margin-top:0.125rem;">~${Math.round(metrics.tdee * 0.27)} kcal</div>
           </div>
         </div>
-      </div>
-
-      <div class="text-xs text-muted" style="margin-top:var(--sp-2); font-style:italic;">
-        * BMR tính theo phương trình Mifflin-St Jeor (1990). TDEE tính theo khuyến nghị vận động học đường ACSM.
+        <div class="text-xs text-muted" style="margin-top:var(--sp-3); font-style:italic; line-height:1.6;">
+          * BMR tính theo phương trình Mifflin-St Jeor (1990). Phân loại BMI theo ngưỡng châu Á — WHO Tây Thái Bình Dương (2000), phù hợp thể trạng học sinh Việt Nam hơn ngưỡng phương Tây. Nhu cầu nước điều chỉnh theo mức vận động (EFSA/ACSM).
+        </div>
       </div>
     `;
   }
@@ -378,7 +380,6 @@ const NF_PageProfile = (() => {
 
       // Lần đầu onboarding: sau khi lưu xong, đưa người dùng vào Trang chủ để bắt đầu dùng app
       if (isOnboarding) {
-        if (window.NF_Motion) NF_Motion.celebrate();
         setTimeout(() => { window.location.hash = '#home'; }, 900);
       }
     };
