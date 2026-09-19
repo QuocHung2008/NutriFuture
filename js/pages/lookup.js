@@ -6,6 +6,7 @@ const NF_PageLookup = (() => {
   'use strict';
 
   let currentResult = null;
+  let savedKey = null; // món vừa lưu vào nhật ký (để không cho lưu trùng khi giao diện vẽ lại)
 
   function render(container) {
     currentResult = null;
@@ -99,13 +100,13 @@ const NF_PageLookup = (() => {
 
             <div id="lookup-history-list" class="lookup-history">
               ${history.length > 0 ? history.map((item, idx) => `
-                <div class="lookup-history__item" data-idx="${idx}">
+                <div class="lookup-history__item is-interactive" data-idx="${idx}">
                   <div>
                     <div style="font-weight:700; color:var(--slate-900);">${NF_UI.escapeHtml(item.name)}</div>
                     <div class="text-xs text-muted">${NF_UI.escapeHtml(item.serving || '1 phần')} • ${NF_UI.escapeHtml(item.foodGroup || 'Dinh dưỡng')}</div>
                   </div>
                   <div style="text-align:right;">
-                    <div style="font-weight:800; color:var(--primary-700);">${item.calories} kcal</div>
+                    <div style="font-weight:800; color:var(--primary-700);">${NF_UI.num(item.calories)} kcal</div>
                     <span class="text-xs text-muted"><i class="fa-solid fa-chevron-right"></i></span>
                   </div>
                 </div>
@@ -139,41 +140,115 @@ const NF_PageLookup = (() => {
       btnQuickConfig.onclick = NF_PageCamera.showApiKeyModal;
     }
 
-    // Submit handler
+    // Chống bấm liên tiếp: khóa ô nhập + chip khi đang tra, và bỏ qua kết quả của lượt tra đã cũ
+    let searching = false;
+    let token = 0;
+
+    const setBusy = (busy) => {
+      searching = busy;
+      input.disabled = busy;
+      chips.forEach((c) => { c.disabled = busy; });
+      if (busy) NF_UI.showInlineLoading(btnSubmit, 'Đang tra…');
+      else NF_UI.hideInlineLoading(btnSubmit);
+    };
+
+    /** Món có trong CSDL: số liệu LẤY TỪ CSDL (không bao giờ bị AI ghi đè), AI chỉ bổ sung nhận xét. */
+    const dbBase = (hit) => ({
+      name: hit.name,
+      serving: hit.serving,
+      calories: hit.calories,
+      protein: hit.protein,
+      fat: hit.fat,
+      carb: hit.carb,
+      fiber: null,
+      vitamins: [],
+      minerals: [],
+      foodGroup: hit.group,
+      tags: [...hit.tags],
+      advice: '',
+      source: 'lookup',
+      dataSource: 'db',
+    });
+
+    const applyComment = (data, extra) => {
+      if (!extra) return data;
+      // Chỉ nhận 4 trường nhận xét — số calo/đạm/béo/carb từ AI (nếu có) bị bỏ hoàn toàn
+      return {
+        ...data,
+        advice: extra.advice || '',
+        fiber: extra.fiber == null ? data.fiber : extra.fiber,
+        vitamins: extra.vitamins || [],
+        minerals: extra.minerals || [],
+      };
+    };
+
     const doSearch = async (query) => {
+      if (searching) return;
       const q = (query || input.value || '').trim();
       if (!q) {
         NF_UI.showToast('Vui lòng nhập tên món ăn cần tra cứu', 'warning');
         return;
       }
 
-      if (!NF_Gemini.isConfigured()) {
+      const hit = NF_Foods.find(q);
+
+      // Món trong CSDL không cần API key để hiện số liệu; chỉ món ngoài CSDL mới cần
+      if (!hit && !NF_Gemini.isConfigured()) {
         NF_PageCamera.showApiKeyModal();
         return;
       }
 
+      const myToken = ++token;
       input.value = q;
-      NF_UI.showInlineLoading(btnSubmit);
-      resultArea.innerHTML = `
-        <div class="loading-container">
-          <div class="loading-spinner"></div>
-          <p class="loading-text">Gemini AI đang tra cứu dữ liệu dinh dưỡng cho "${NF_UI.escapeHtml(q)}"...</p>
-        </div>
-      `;
+      savedKey = null;
+      setBusy(true);
+
+      if (!hit) {
+        resultArea.innerHTML = `
+          <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Gemini AI đang tra cứu dữ liệu dinh dưỡng cho "${NF_UI.escapeHtml(q)}"...</p>
+          </div>
+        `;
+      }
 
       try {
-        const data = await NF_Gemini.searchFood(q);
-        currentResult = data;
-        NF_UI.hideInlineLoading(btnSubmit);
-        renderResult(resultArea, data);
+        let data;
+        if (hit) {
+          data = dbBase(hit);
+          // Dùng nhận xét đã lưu nếu có (hiện ngay, kể cả offline), rồi mới hỏi AI nếu chưa có
+          const cached = NF_Gemini.getCachedComment(hit);
+          if (cached) data = applyComment(data, cached);
+        } else {
+          data = await NF_Gemini.searchFood(q);
+        }
+        if (myToken !== token) return;
 
-        // Lưu vào history
+        currentResult = data;
+        renderResult(resultArea, data, { commentPending: !!hit && !data.advice && NF_Gemini.isConfigured() });
         NF_Storage.addLookupHistory(data);
         NF_UI.showToast(`Đã tìm thấy thông tin cho "${NF_UI.escapeHtml(data.name)}"`, 'success');
+        setBusy(false);
+
+        // Nhận xét AI cho món CSDL: chạy nền, lỗi/hết quota thì chỉ đơn giản là không có ô "Lời khuyên"
+        if (hit && !data.advice && NF_Gemini.isConfigured()) {
+          try {
+            const extra = await NF_Gemini.commentOnFood(hit);
+            if (myToken === token) {
+              currentResult = applyComment(currentResult, extra);
+              renderResult(resultArea, currentResult, { noAnim: true });
+              NF_Storage.updateLatestLookup(currentResult);
+            }
+          } catch (aiErr) {
+            console.warn('[Lookup] Không lấy được nhận xét AI, vẫn hiển thị số liệu CSDL:', aiErr);
+            if (myToken === token) renderResult(resultArea, currentResult, { noAnim: true });
+          }
+        }
       } catch (err) {
+        if (myToken !== token) return;
         console.error('Search error:', err);
-        NF_UI.hideInlineLoading(btnSubmit);
-        const msg = NF_Gemini.getErrorMessage(err);
+        setBusy(false);
+        const msg = NF_UI.escapeHtml(NF_Gemini.getErrorMessage(err));
         resultArea.innerHTML = `
           <div class="advice-box advice-box--warning" style="margin-top:var(--sp-3);">
             <div style="font-weight:700; margin-bottom:var(--sp-1);">
@@ -209,7 +284,8 @@ const NF_PageLookup = (() => {
         const idx = parseInt(item.dataset.idx, 10);
         if (history[idx]) {
           currentResult = history[idx];
-          renderResult(resultArea, history[idx]);
+          savedKey = null;
+          renderResult(resultArea, history[idx], {});
           // Scroll smoothly to result
           resultArea.scrollIntoView({ behavior: 'smooth' });
         }
@@ -228,7 +304,7 @@ const NF_PageLookup = (() => {
     }
   }
 
-  function renderResult(targetEl, data) {
+  function renderResult(targetEl, data, opts = {}) {
     const hour = new Date().getHours();
     let defaultMeal = 'Bữa Trưa';
     if (hour >= 5 && hour < 10) defaultMeal = 'Bữa Sáng';
@@ -236,20 +312,34 @@ const NF_PageLookup = (() => {
     else if (hour >= 14 && hour < 17) defaultMeal = 'Bữa Phụ';
     else defaultMeal = 'Bữa Tối';
 
+    const n = NF_UI.num;
+    const esc = NF_UI.escapeHtml;
+    const isDb = data.dataSource === 'db';
+    const badgeText = isDb
+      ? (data.advice ? 'Dữ liệu chuẩn + nhận xét AI' : 'Dữ liệu chuẩn')
+      : 'Dữ liệu Gemini AI';
+    const badgeIcon = isDb && !data.advice ? 'fa-circle-check' : 'fa-sparkles';
+    const fiberText = (data.fiber === null || data.fiber === undefined) ? '—' : `${n(data.fiber)}g`;
+    const vit = Array.isArray(data.vitamins) ? data.vitamins : [];
+    const min = Array.isArray(data.minerals) ? data.minerals : [];
+    const key = `${data.name}|${data.serving}`;
+    const alreadySaved = savedKey === key;
+
+    // Thẻ kết quả chỉ mờ dần (không trượt) để không "giật" khi thay khối loading
     targetEl.innerHTML = `
-      <div class="result-card" style="margin-top:var(--sp-3); animation:fadeIn var(--duration-normal) var(--ease-out);">
+      <div class="result-card ${opts.noAnim ? '' : 'result-card--fade'}" style="margin-top:var(--sp-3);">
         <div class="result-card__header">
           <div>
             <span class="result-card__badge" style="background:var(--blue-50); color:var(--blue-700); border-color:var(--blue-200);">
-              <i class="fa-solid fa-sparkles"></i> Dữ liệu Gemini AI
+              <i class="fa-solid ${badgeIcon}"></i> ${badgeText}
             </span>
-            <h2 class="result-card__name" style="margin-top:0.25rem;">${NF_UI.escapeHtml(data.name)}</h2>
+            <h2 class="result-card__name" style="margin-top:0.25rem;">${esc(data.name)}</h2>
             <div class="result-card__serving">
-              <i class="fa-solid fa-bowl-food"></i> Khẩu phần: ${NF_UI.escapeHtml(data.serving)}
+              <i class="fa-solid fa-bowl-food"></i> Khẩu phần: ${esc(data.serving)}
             </div>
           </div>
           <div style="text-align:right;">
-            <div class="result-card__calories">${data.calories}</div>
+            <div class="result-card__calories">${n(data.calories)}</div>
             <span class="result-card__cal-unit">kcal / phần</span>
           </div>
         </div>
@@ -258,19 +348,19 @@ const NF_PageLookup = (() => {
         <div class="nutrient-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:var(--sp-3);">
           <div class="nutrient-box">
             <div class="nutrient-box__label">Carb</div>
-            <div class="nutrient-box__value" style="color:var(--blue-600);">${data.carb}g</div>
+            <div class="nutrient-box__value" style="color:var(--blue-600);">${n(data.carb)}g</div>
           </div>
           <div class="nutrient-box">
             <div class="nutrient-box__label">Protein</div>
-            <div class="nutrient-box__value" style="color:var(--primary-600);">${data.protein}g</div>
+            <div class="nutrient-box__value" style="color:var(--primary-600);">${n(data.protein)}g</div>
           </div>
           <div class="nutrient-box">
             <div class="nutrient-box__label">Fat</div>
-            <div class="nutrient-box__value" style="color:var(--amber-600);">${data.fat}g</div>
+            <div class="nutrient-box__value" style="color:var(--amber-600);">${n(data.fat)}g</div>
           </div>
           <div class="nutrient-box">
             <div class="nutrient-box__label">Chất xơ</div>
-            <div class="nutrient-box__value" style="color:var(--primary-700);">${data.fiber}g</div>
+            <div class="nutrient-box__value" style="color:var(--primary-700);">${fiberText}</div>
           </div>
         </div>
 
@@ -278,24 +368,26 @@ const NF_PageLookup = (() => {
         <div style="display:flex; flex-direction:column; gap:var(--sp-2); margin-bottom:var(--sp-3);">
           ${data.foodGroup ? `
             <div class="text-xs text-muted">
-              <strong>Nhóm thực phẩm:</strong> ${NF_UI.escapeHtml(data.foodGroup)}
+              <strong>Nhóm thực phẩm:</strong> ${esc(data.foodGroup)}
             </div>
           ` : ''}
 
-          ${(data.vitamins && data.vitamins.length > 0) || (data.minerals && data.minerals.length > 0) ? `
+          ${vit.length > 0 || min.length > 0 ? `
             <div class="micro-info">
               <i class="fa-solid fa-apple-whole"></i>
-              ${data.vitamins && data.vitamins.length ? `<strong>Vitamin:</strong> ${NF_UI.escapeHtml(data.vitamins.join(', '))}. ` : ''}
-              ${data.minerals && data.minerals.length ? `<strong>Khoáng chất:</strong> ${NF_UI.escapeHtml(data.minerals.join(', '))}.` : ''}
+              ${vit.length ? `<strong>Vitamin:</strong> ${esc(vit.join(', '))}. ` : ''}
+              ${min.length ? `<strong>Khoáng chất:</strong> ${esc(min.join(', '))}.` : ''}
             </div>
           ` : ''}
 
           ${data.advice ? `
             <div class="advice-box advice-box--success">
               <i class="fa-solid fa-lightbulb"></i>
-              <strong>Lời khuyên cho học sinh:</strong> ${NF_UI.escapeHtml(data.advice)}
+              <strong>Lời khuyên cho học sinh:</strong> ${esc(data.advice)}
             </div>
-          ` : ''}
+          ` : (opts.commentPending ? `
+            <div class="text-xs text-muted"><i class="fa-solid fa-spinner fa-spin"></i> AI đang viết nhận xét…</div>
+          ` : '')}
         </div>
 
         <!-- Save Action -->
@@ -310,35 +402,42 @@ const NF_PageLookup = (() => {
               <option value="Bữa Tối" ${defaultMeal === 'Bữa Tối' ? 'selected' : ''}>🌙 Bữa Tối</option>
               <option value="Bữa Phụ" ${defaultMeal === 'Bữa Phụ' ? 'selected' : ''}>🍎 Bữa Phụ</option>
             </select>
-            <button class="btn btn--primary" id="btn-save-lookup-diary" style="white-space:nowrap;">
-              <i class="fa-solid fa-bookmark"></i> Lưu vào nhật ký
+            <button class="btn btn--primary" id="btn-save-lookup-diary" style="white-space:nowrap;" ${alreadySaved ? 'disabled' : ''}>
+              ${alreadySaved ? '<i class="fa-solid fa-check"></i> Đã lưu' : '<i class="fa-solid fa-bookmark"></i> Lưu vào nhật ký'}
             </button>
           </div>
         </div>
       </div>
     `;
 
+    // Số kcal đếm lên (chỉ lần hiển thị đầu; lần vẽ lại khi nhận xét AI đến thì không lặp hiệu ứng)
+    if (!opts.noAnim) {
+      NF_UI.animateNumber(targetEl.querySelector('.result-card__calories'), 0, n(data.calories), 600);
+    }
+
     const btnSave = targetEl.querySelector('#btn-save-lookup-diary');
     const mealSelect = targetEl.querySelector('#lookup-meal-select');
 
-    if (btnSave) {
+    if (btnSave && !alreadySaved) {
       btnSave.onclick = () => {
         const mealType = mealSelect ? mealSelect.value : 'Bữa ăn';
         const entry = {
           name: data.name,
           serving: data.serving,
-          calories: data.calories,
-          protein: data.protein,
-          fat: data.fat,
-          carb: data.carb,
-          fiber: data.fiber,
+          calories: n(data.calories),
+          protein: n(data.protein),
+          fat: n(data.fat),
+          carb: n(data.carb),
+          fiber: n(data.fiber),
+          tags: Array.isArray(data.tags) ? data.tags.filter((t) => t === 'veg' || t === 'fruit') : [],
           mealType: mealType,
           source: 'lookup',
           time: NF_UI.getTimeNow(),
         };
 
         NF_Storage.addDiaryEntry(entry, NF_Storage.getToday());
-        NF_UI.showToast(`Đã lưu "${NF_UI.escapeHtml(data.name)}" vào ${mealType} hôm nay!`, 'success');
+        savedKey = key;
+        NF_UI.showToast(`Đã lưu "${esc(data.name)}" vào ${mealType} hôm nay!`, 'success');
         btnSave.disabled = true;
         btnSave.innerHTML = '<i class="fa-solid fa-check"></i> Đã lưu';
       };

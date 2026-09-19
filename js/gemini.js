@@ -162,7 +162,7 @@ const NF_Gemini = (() => {
 
   const _RETRYABLE_STATUSES = [404, 503, 429, 0]; // 0 = timeout (AbortError)
 
-  async function _call(prompt, base64Image = null) {
+  async function _call(prompt, base64Image = null, opts = {}) {
     if (!isConfigured()) {
       throw new Error('API_NOT_CONFIGURED');
     }
@@ -183,8 +183,8 @@ const NF_Gemini = (() => {
     const body = {
       contents: [{ parts }],
       generationConfig: {
-        maxOutputTokens: (typeof GEMINI_CONFIG !== 'undefined' && GEMINI_CONFIG.maxTokens) ? GEMINI_CONFIG.maxTokens : 2048,
-        temperature: 0.15,
+        maxOutputTokens: opts.maxTokens || ((typeof GEMINI_CONFIG !== 'undefined' && GEMINI_CONFIG.maxTokens) ? GEMINI_CONFIG.maxTokens : 2048),
+        temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.15,
       }
     };
 
@@ -362,6 +362,44 @@ const NF_Gemini = (() => {
     return `Lỗi từ Gemini AI: ${fullDetail || msg}`;
   }
 
+  /* ─── Làm sạch dữ liệu AI trước khi dùng (AI luôn coi là KHÔNG tin cậy) ─── */
+
+  const _round1 = (v) => Math.round(Number(v) * 10) / 10 || 0;
+  const _bool = (v) => v === true || v === 'true';
+  const _str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const _strList = (v, maxItems = 6) =>
+    (Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && x.trim()).slice(0, maxItems).map((x) => x.trim().slice(0, 40));
+
+  /** hasVeg/hasFruit (AI) → mảng tags chuẩn ['veg','fruit'] dùng cho game. */
+  function _tagsFrom(data) {
+    const tags = [];
+    if (_bool(data.hasVeg)) tags.push('veg');
+    if (_bool(data.hasFruit)) tags.push('fruit');
+    return tags;
+  }
+
+  const _TAG_RULES = `- "hasVeg": true CHỈ KHI rau/củ là thành phần chính đáng kể của phần ăn (vd: rau luộc, salad, canh rau); ngược lại false.
+- "hasFruit": true CHỈ KHI phần ăn là trái cây hoặc có trái cây đáng kể; ngược lại false.`;
+
+  function _foodFromAI(data, fallbackName, source) {
+    return {
+      name: _str(data.name, 120) || fallbackName,
+      serving: _str(data.serving, 80) || 'Ước tính',
+      calories: Math.max(0, Math.round(Number(data.calories)) || 0),
+      protein: Math.max(0, _round1(data.protein)),
+      fat: Math.max(0, _round1(data.fat)),
+      carb: Math.max(0, _round1(data.carb)),
+      fiber: Math.max(0, _round1(data.fiber)),
+      vitamins: _strList(data.vitamins),
+      minerals: _strList(data.minerals),
+      foodGroup: _str(data.foodGroup, 60),
+      tags: _tagsFrom(data),
+      advice: _str(data.advice, 400),
+      source,
+      dataSource: 'ai',
+    };
+  }
+
   /* ─── API: Nhận diện ảnh món ăn (Gemini Vision) ─── */
 
   async function analyzeImage(base64Image) {
@@ -379,41 +417,30 @@ CHỈ trả về JSON thuần (không có text ngoài JSON), theo đúng format:
   "vitamins": ["tên vitamin chính"],
   "minerals": ["tên khoáng chất chính"],
   "foodGroup": "Nhóm thực phẩm chính (Tinh bột / Chất đạm / Chất béo / Vitamin & Khoáng chất)",
-  "advice": "1 câu lời khuyên dinh dưỡng ngắn cho học sinh THPT (15-18 tuổi)"
+  "hasVeg": false,
+  "hasFruit": false,
+  "advice": "1 câu lời khuyên dinh dưỡng ngắn cho học sinh THPT (15-22 tuổi)"
 }
 
 Nếu KHÔNG nhận diện được thức ăn trong hình, trả về:
 {"error": "NO_FOOD_DETECTED"}
 
-Lưu ý: Giá trị dinh dưỡng phải là số (không có đơn vị). Ước tính dựa trên khẩu phần trung bình tại Việt Nam.`;
+Lưu ý: Giá trị dinh dưỡng phải là số (không có đơn vị). Ước tính dựa trên khẩu phần trung bình tại Việt Nam.
+${_TAG_RULES}`;
 
     const text = await _call(prompt, base64Image);
     const data = _parseJSON(text);
-    
+
     if (data.error === 'NO_FOOD_DETECTED') {
       throw new Error('NO_FOOD_DETECTED');
     }
-
-    return {
-      name: data.name || 'Món ăn không xác định',
-      serving: data.serving || 'Ước tính',
-      calories: Math.round(Number(data.calories)) || 0,
-      protein: Math.round(Number(data.protein) * 10) / 10 || 0,
-      fat: Math.round(Number(data.fat) * 10) / 10 || 0,
-      carb: Math.round(Number(data.carb) * 10) / 10 || 0,
-      fiber: Math.round(Number(data.fiber) * 10) / 10 || 0,
-      vitamins: Array.isArray(data.vitamins) ? data.vitamins : [],
-      minerals: Array.isArray(data.minerals) ? data.minerals : [],
-      foodGroup: data.foodGroup || '',
-      advice: data.advice || '',
-      source: 'camera'
-    };
+    return _foodFromAI(data, 'Món ăn không xác định', 'camera');
   }
 
-  /* ─── API: Tra cứu món ăn bằng text ─── */
+  /* ─── API: Tra cứu món ăn bằng text (món KHÔNG có trong CSDL nội bộ → hoàn toàn từ AI) ─── */
 
   async function searchFood(query) {
-    const prompt = `Bạn là chuyên gia dinh dưỡng Việt Nam. Cung cấp thông tin dinh dưỡng cho món ăn: "${query}"
+    const prompt = `Bạn là chuyên gia dinh dưỡng Việt Nam. Cung cấp thông tin dinh dưỡng cho món ăn: ${JSON.stringify(String(query).slice(0, 120))}
 
 CHỈ trả về JSON thuần (không có text ngoài JSON), theo đúng format:
 {
@@ -427,45 +454,106 @@ CHỈ trả về JSON thuần (không có text ngoài JSON), theo đúng format:
   "vitamins": ["vitamin chính"],
   "minerals": ["khoáng chất chính"],
   "foodGroup": "Nhóm thực phẩm (Tinh bột / Chất đạm / Chất béo / Vitamin & Khoáng chất)",
-  "advice": "1 câu lời khuyên dinh dưỡng cho học sinh THPT (15-18 tuổi)"
+  "hasVeg": false,
+  "hasFruit": false,
+  "advice": "1 câu lời khuyên dinh dưỡng cho học sinh THPT (15-22 tuổi)"
 }
 
-Lưu ý: Giá trị phải là số. Ước tính dựa trên khẩu phần trung bình tại Việt Nam.`;
+Lưu ý: Giá trị phải là số. Ước tính dựa trên khẩu phần trung bình tại Việt Nam.
+${_TAG_RULES}`;
 
     const text = await _call(prompt);
-    const data = _parseJSON(text);
+    return _foodFromAI(_parseJSON(text), String(query).slice(0, 120), 'lookup');
+  }
 
+  /* ─── API: Nhận xét AI cho món CÓ trong CSDL (số liệu gốc KHÔNG bao giờ bị AI ghi đè) ─── */
+
+  const COMMENT_CACHE_KEY = 'nf_food_comments';
+  const COMMENT_CACHE_MAX = 120;
+
+  function _readCommentCache() {
+    try { return JSON.parse(localStorage.getItem(COMMENT_CACHE_KEY)) || {}; } catch (e) { return {}; }
+  }
+
+  /** Lấy nhận xét đã lưu (nếu có) — dùng được cả khi offline/hết quota. */
+  function getCachedComment(dbItem) {
+    const c = dbItem && _readCommentCache()[dbItem.id];
+    return c ? { ...c } : null;
+  }
+
+  /** Chỉ giữ 4 trường nhận xét; mọi trường số calo/đạm/béo/carb (nếu AI lỡ trả về) bị bỏ. */
+  function _cleanComment(data) {
+    const fiber = Number(data.fiber);
     return {
-      name: data.name || query,
-      serving: data.serving || 'Ước tính',
-      calories: Math.round(Number(data.calories)) || 0,
-      protein: Math.round(Number(data.protein) * 10) / 10 || 0,
-      fat: Math.round(Number(data.fat) * 10) / 10 || 0,
-      carb: Math.round(Number(data.carb) * 10) / 10 || 0,
-      fiber: Math.round(Number(data.fiber) * 10) / 10 || 0,
-      vitamins: Array.isArray(data.vitamins) ? data.vitamins : [],
-      minerals: Array.isArray(data.minerals) ? data.minerals : [],
-      foodGroup: data.foodGroup || '',
-      advice: data.advice || '',
-      source: 'lookup'
+      advice: _str(data.advice, 300),
+      fiber: isFinite(fiber) && fiber >= 0 && fiber <= 60 ? _round1(fiber) : null,
+      vitamins: _strList(data.vitamins),
+      minerals: _strList(data.minerals),
     };
+  }
+
+  async function commentOnFood(dbItem) {
+    const cached = getCachedComment(dbItem);
+    if (cached) return cached; // món trong CSDL là cố định → không tốn thêm quota cho lần tra cứu sau
+
+    const prompt = `Bạn là chuyên gia dinh dưỡng Việt Nam. Dưới đây là số liệu CHUẨN (đã kiểm chứng) của một món trong cơ sở dữ liệu:
+- Món: ${dbItem.name} — khẩu phần: ${dbItem.serving}
+- Calo: ${dbItem.calories} kcal; đạm: ${dbItem.protein}g; béo: ${dbItem.fat}g; carb: ${dbItem.carb}g
+
+TUYỆT ĐỐI KHÔNG thay đổi, không làm tròn lại, không nhắc lại các số calo/đạm/béo/carb. Chỉ bổ sung nhận xét.
+
+CHỈ trả về JSON thuần (không có text ngoài JSON):
+{
+  "advice": "Tối đa 2 câu nhận xét/lời khuyên cho học sinh THPT (15-22 tuổi) khi ăn món này với đúng khẩu phần trên",
+  "fiber": 0,
+  "vitamins": ["vitamin chính"],
+  "minerals": ["khoáng chất chính"]
+}
+"fiber" là số gam chất xơ ước tính cho đúng khẩu phần trên.`;
+
+    const text = await _call(prompt);
+    const extra = _cleanComment(_parseJSON(text));
+    if (!extra.advice && extra.fiber === null && !extra.vitamins.length && !extra.minerals.length) {
+      throw new Error('PARSE_ERROR');
+    }
+
+    try {
+      const cache = _readCommentCache();
+      cache[dbItem.id] = { ...extra, ts: Date.now() };
+      const keys = Object.keys(cache);
+      if (keys.length > COMMENT_CACHE_MAX) {
+        keys.sort((a, b) => (cache[a].ts || 0) - (cache[b].ts || 0))
+          .slice(0, keys.length - COMMENT_CACHE_MAX).forEach((k) => delete cache[k]);
+      }
+      localStorage.setItem(COMMENT_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) { /* localStorage đầy/bị chặn: bỏ qua cache */ }
+    return extra;
   }
 
   /* ─── API: Gợi ý thực đơn AI ─── */
 
-  async function suggestMealPlan(profile) {
+  const MEAL_TYPES = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
+
+  async function suggestMealPlan(profile, opts = {}) {
+    const avoid = (opts.avoid || []).filter(Boolean).slice(0, 24);
     const genderVi = profile.gender === 'male' ? 'Nam' : 'Nữ';
+    const tdee = Number(profile.tdee) || 0;
+    const lo = Math.round(tdee * 0.92);
+    const hi = Math.round(tdee * 1.08);
     const prompt = `Bạn là chuyên gia dinh dưỡng Việt Nam. Gợi ý thực đơn 1 ngày cho học sinh THPT:
 - Giới tính: ${genderVi}
 - Tuổi: ${profile.age} tuổi
-- TDEE: ${profile.tdee} kcal/ngày
+- TDEE: ${tdee} kcal/ngày
 - BMI: ${profile.bmi}
 
-Yêu cầu:
+Yêu cầu BẮT BUỘC:
+- Đúng 4 mục: "Bữa Sáng", "Bữa Trưa", "Bữa Tối", "Bữa Phụ" (3 bữa chính + 1 bữa phụ)
+- Tổng calo của 4 mục nằm trong khoảng ${lo}–${hi} kcal (bám sát TDEE)
 - Cân đối 4 nhóm chất: tinh bột (50-55%), chất đạm (15-20%), chất béo (25-30%), vitamin/khoáng chất
-- Món ăn Việt Nam phổ biến, dễ tìm
-- 3 bữa chính + 1 bữa phụ
-- Tổng calo xấp xỉ TDEE
+- Trong cả ngày PHẢI có ít nhất 1 món rau xanh và ít nhất 1 món trái cây (ghi rõ trong tên món)
+- Món Việt Nam phổ biến, dễ tìm
+${avoid.length ? `- KHÔNG dùng lại các món sau: ${avoid.join('; ')}` : ''}
+${opts.feedback ? `- Lần trước chưa đạt vì: ${opts.feedback}. Hãy sửa đúng các điểm này.` : ''}
 
 CHỈ trả về JSON thuần:
 {
@@ -473,42 +561,109 @@ CHỈ trả về JSON thuần:
   "meals": [
     {
       "type": "Bữa Sáng",
-      "name": "Tên món",
+      "name": "Tên món (liệt kê các món trong bữa)",
       "calories": 0,
       "protein": 0,
       "fat": 0,
       "carb": 0,
+      "hasVeg": false,
+      "hasFruit": false,
       "description": "Mô tả ngắn"
     }
   ],
-  "totalCalories": 0,
   "advice": "1-2 câu lời khuyên dinh dưỡng chung"
-}`;
+}
+"hasVeg"/"hasFruit" = bữa đó có rau xanh / trái cây hay không.`;
 
-    const text = await _call(prompt);
+    const text = await _call(prompt, null, { temperature: 0.7, maxTokens: 3000 });
     const data = _parseJSON(text);
 
+    const meals = (Array.isArray(data.meals) ? data.meals : []).slice(0, 6).map((m) => ({
+      type: MEAL_TYPES.includes(m && m.type) ? m.type : 'Bữa Phụ',
+      name: _str(m && m.name, 160),
+      calories: Math.max(0, Math.round(Number(m && m.calories)) || 0),
+      protein: Math.max(0, _round1(m && m.protein)),
+      fat: Math.max(0, _round1(m && m.fat)),
+      carb: Math.max(0, _round1(m && m.carb)),
+      tags: _tagsFrom(m || {}),
+      description: _str(m && m.description, 240),
+    })).filter((m) => m.name);
+
     return {
-      planName: data.planName || 'Thực đơn AI',
-      meals: (data.meals || []).map(m => ({
-        type: m.type || 'Bữa ăn',
-        name: m.name || '',
-        calories: Math.round(Number(m.calories)) || 0,
-        protein: Math.round(Number(m.protein) * 10) / 10 || 0,
-        fat: Math.round(Number(m.fat) * 10) / 10 || 0,
-        carb: Math.round(Number(m.carb) * 10) / 10 || 0,
-        description: m.description || '',
-      })),
-      totalCalories: Math.round(Number(data.totalCalories)) || 0,
-      advice: data.advice || '',
+      planName: _str(data.planName, 100) || 'Thực đơn AI',
+      meals,
+      // Tự cộng thay vì tin "totalCalories" do AI báo (AI hay cộng sai)
+      totalCalories: meals.reduce((sum, m) => sum + m.calories, 0),
+      advice: _str(data.advice, 400),
     };
+  }
+
+  /** Kiểm tra thực đơn: đủ 4 mục, tổng kcal ±10% TDEE, có ≥1 món rau và ≥1 món trái cây. */
+  function checkMealPlan(plan, tdee) {
+    const reasons = [];
+    const types = new Set((plan.meals || []).map((m) => m.type));
+    if (!MEAL_TYPES.every((t) => types.has(t))) reasons.push('thiếu bữa (cần đủ Sáng, Trưa, Tối và Phụ)');
+    if (tdee > 0) {
+      const ratio = plan.totalCalories / tdee;
+      if (ratio < 0.9 || ratio > 1.1) {
+        reasons.push(`tổng ${plan.totalCalories} kcal lệch quá 10% so với TDEE ${tdee} kcal`);
+      }
+    }
+    if (!(plan.meals || []).some((m) => (m.tags || []).includes('veg'))) reasons.push('chưa có món rau xanh');
+    if (!(plan.meals || []).some((m) => (m.tags || []).includes('fruit'))) reasons.push('chưa có trái cây');
+    return { ok: reasons.length === 0, reasons };
+  }
+
+  /** Gọi AI, kiểm tra; nếu không đạt thì gọi lại ĐÚNG 1 lần kèm lý do. Trả { plan, ok, reasons }. */
+  async function suggestMealPlanVerified(profile, opts = {}) {
+    let plan = await suggestMealPlan(profile, opts);
+    let check = checkMealPlan(plan, Number(profile.tdee) || 0);
+    if (!check.ok) {
+      try {
+        const retry = await suggestMealPlan(profile, { ...opts, feedback: check.reasons.join('; ') });
+        const retryCheck = checkMealPlan(retry, Number(profile.tdee) || 0);
+        if (retryCheck.ok || retry.meals.length >= plan.meals.length) { plan = retry; check = retryCheck; }
+      } catch (e) { /* giữ kết quả lần đầu nếu lần thử lại lỗi */ }
+    }
+    return { plan, ok: check.ok, reasons: check.reasons };
+  }
+
+  /* ─── API: Sinh câu đố dinh dưỡng (kết quả thô — NF_Game kiểm tra & làm sạch trước khi dùng) ─── */
+
+  const QUIZ_TOPICS = [
+    'năng lượng và các chất sinh năng lượng', 'vitamin và khoáng chất', 'nước và đồ uống',
+    'đường, muối và chất béo', 'chất xơ, rau và trái cây', 'bữa sáng và ăn uống điều độ',
+    'canxi, sắt và phát triển cơ thể', 'đọc nhãn thực phẩm và đồ ăn vặt', 'BMI và cân nặng khỏe mạnh',
+    'thực phẩm giàu protein', 'an toàn thực phẩm', 'ăn uống khi học thi và thể thao',
+  ];
+
+  async function generateQuiz(count = 5, opts = {}) {
+    const topics = QUIZ_TOPICS.slice().sort(() => Math.random() - 0.5).slice(0, count).join('; ');
+    const avoid = (opts.avoid || []).slice(0, 15).map((q) => `"${String(q).slice(0, 90)}"`).join('; ');
+    const prompt = `Tạo ${count} câu hỏi trắc nghiệm tiếng Việt về dinh dưỡng học đường cho học sinh THPT (15-22 tuổi).
+Mỗi câu thuộc một chủ đề khác nhau, lấy từ: ${topics}.
+Yêu cầu: đúng 4 đáp án, chỉ 1 đáp án đúng; kiến thức PHỔ BIẾN và CHÍNH XÁC theo khuyến nghị của Viện Dinh dưỡng Quốc gia/WHO, tránh số liệu gây tranh cãi; câu hỏi ngắn gọn; giải thích 1-2 câu.
+${avoid ? `Không lặp lại các câu đã có: ${avoid}` : ''}
+
+CHỈ trả về JSON thuần:
+{"questions":[{"q":"Câu hỏi?","options":["A","B","C","D"],"answer":0,"explain":"Giải thích ngắn"}]}
+"answer" là chỉ số (0-3) của đáp án đúng trong "options".`;
+
+    const text = await _call(prompt, null, { temperature: 0.9, maxTokens: 3500 });
+    const data = _parseJSON(text);
+    return Array.isArray(data.questions) ? data.questions : [];
   }
 
   return {
     isConfigured,
     analyzeImage,
     searchFood,
+    commentOnFood,
+    getCachedComment,
     suggestMealPlan,
+    suggestMealPlanVerified,
+    checkMealPlan,
+    generateQuiz,
     getErrorMessage,
     testConnection,
     MODEL_OPTIONS,

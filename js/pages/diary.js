@@ -262,6 +262,15 @@ const NF_PageDiary = (() => {
         const id = Number(btn.dataset.id);
         const ok = await NF_UI.confirm('Bạn có muốn xóa món ăn này khỏi nhật ký?');
         if (ok) {
+          // Thu gọn + mờ 200 ms rồi mới xóa thật (bỏ qua hiệu ứng nếu người dùng bật "Reduce motion")
+          const row = btn.closest('.diary-entry');
+          const animate = row && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+          if (animate) {
+            row.style.maxHeight = row.offsetHeight + 'px';
+            void row.offsetHeight;
+            row.classList.add('is-removing');
+            await new Promise((r) => setTimeout(r, 200));
+          }
           NF_Storage.removeDiaryEntry(id, selectedDate);
           NF_UI.showToast('Đã xóa món ăn', 'info');
           refresh();
@@ -391,6 +400,15 @@ const NF_PageDiary = (() => {
             </div>
           </div>
 
+          <div style="margin-bottom:var(--sp-3);">
+            <label class="card__label" for="manual-group">NHÓM (TÙY CHỌN — để tính điểm "ăn lành mạnh")</label>
+            <select id="manual-group" class="search-bar__input">
+              <option value="" selected>Khác</option>
+              <option value="veg">🥬 Rau củ</option>
+              <option value="fruit">🍊 Trái cây</option>
+            </select>
+          </div>
+
           <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--sp-2); margin-bottom:var(--sp-4);">
             <div>
               <label class="card__label" for="manual-carb">CARB (G)</label>
@@ -438,6 +456,7 @@ const NF_PageDiary = (() => {
         protein: Math.round(protein * 10) / 10,
         fat: Math.round(fat * 10) / 10,
         fiber: 0,
+        tags: (() => { const g = document.getElementById('manual-group').value; return (g === 'veg' || g === 'fruit') ? [g] : []; })(),
         mealType,
         source: 'manual',
         time: NF_UI.getTimeNow(),

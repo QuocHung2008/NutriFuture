@@ -405,7 +405,7 @@ const NF_PageCamera = (() => {
           <div style="font-weight:700; margin-bottom:var(--sp-1);">
             <i class="fa-solid fa-triangle-exclamation"></i> Không thể phân tích ảnh
           </div>
-          <p>${msg}</p>
+          <p>${NF_UI.escapeHtml(msg)}</p>
           <div style="margin-top:var(--sp-3); display:flex; gap:var(--sp-2); flex-wrap:wrap;">
             <button class="btn btn--outline btn--sm" id="btn-retry-err">
               <i class="fa-solid fa-rotate-right"></i> Thử lại
@@ -617,6 +617,7 @@ const NF_PageCamera = (() => {
           fat: data.fat,
           carb: data.carb,
           fiber: data.fiber,
+          tags: Array.isArray(data.tags) ? data.tags : [],
           mealType: mealType,
           source: 'camera',
           time: NF_UI.getTimeNow(),

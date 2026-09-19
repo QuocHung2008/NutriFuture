@@ -6,6 +6,29 @@
 const NF_PageProfile = (() => {
   'use strict';
 
+  // Tối đa 3 thực đơn gần nhất (chỉ giữ trong bộ nhớ trang, không lưu) — để "Đổi thực đơn khác" tránh lặp món
+  let recentPlans = [];
+
+  const FIELD_IDS = { gender: 'prof-gender', age: 'prof-age', height: 'prof-height', weight: 'prof-weight' };
+
+  function clearInvalid(container) {
+    container.querySelectorAll('.is-invalid').forEach((el) => el.classList.remove('is-invalid'));
+  }
+
+  /** Viền đỏ các ô lỗi, focus ô lỗi đầu tiên, báo bằng toast (không thêm khối giao diện mới). */
+  function markInvalid(container, errors) {
+    let first = null;
+    ['gender', 'age', 'height', 'weight'].forEach((f) => {
+      if (!errors[f]) return;
+      const el = container.querySelector('#' + FIELD_IDS[f]);
+      if (el) { el.classList.add('is-invalid'); if (!first) first = { el, msg: errors[f] }; }
+    });
+    if (first) {
+      NF_UI.showToast(first.msg, 'warning');
+      first.el.focus();
+    }
+  }
+
   function calculateMetrics(data) {
     const age = parseFloat(data.age);
     const height = parseFloat(data.height); // cm
@@ -66,6 +89,7 @@ const NF_PageProfile = (() => {
 
   function render(container, options = {}) {
     const isOnboarding = !!options.onboarding;
+    recentPlans = [];
     const profile = NF_Storage.getProfile() || {};
     const hasData = !!(profile.weight && profile.height && profile.age);
     const hasApiKey = NF_Gemini.isConfigured();
@@ -88,11 +112,18 @@ const NF_PageProfile = (() => {
         </div>
 
         <div class="page__body profile-grid">
-          ${isOnboarding ? `
+          ${isOnboarding && !hasData ? `
             <div class="advice-box advice-box--info" style="grid-column:1 / -1;">
               <i class="fa-solid fa-hand-sparkles"></i>
               <strong>Chào mừng bạn đến với NutriFuture!</strong>
               Trước khi bắt đầu, hãy nhập thông tin thể chất bên dưới để hệ thống tính toán chỉ số dinh dưỡng cá nhân hóa (BMI, TDEE, nhu cầu nước...) — chỉ mất khoảng 30 giây, và bạn chỉ cần làm 1 lần duy nhất.
+            </div>
+          ` : ''}
+          ${isOnboarding && hasData ? `
+            <div class="advice-box advice-box--warning" style="grid-column:1 / -1;">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <strong>Hồ sơ cần được cập nhật.</strong>
+              Thông tin đã lưu chưa hợp lệ (tuổi 15–22, cao 120–220 cm, nặng 30–150 kg). Vui lòng kiểm tra và lưu lại để tiếp tục sử dụng.
             </div>
           ` : ''}
           <!-- Cột trái: Form nhập -->
@@ -123,17 +154,17 @@ const NF_PageProfile = (() => {
               <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--sp-2); margin-bottom:var(--sp-3);">
                 <div>
                   <label class="card__label" for="prof-age">TUỔI</label>
-                  <input type="number" id="prof-age" class="search-bar__input" min="10" max="30"
+                  <input type="number" id="prof-age" class="search-bar__input" min="15" max="22" step="1"
                          value="${profile.age || ''}" placeholder="vd: 16" style="padding-left:var(--sp-3);" />
                 </div>
                 <div>
                   <label class="card__label" for="prof-height">CHIỀU CAO (CM)</label>
-                  <input type="number" id="prof-height" class="search-bar__input" min="100" max="230" step="0.5"
+                  <input type="number" id="prof-height" class="search-bar__input" min="120" max="220" step="0.5"
                          value="${profile.height || ''}" placeholder="vd: 165" style="padding-left:var(--sp-3);" />
                 </div>
                 <div>
                   <label class="card__label" for="prof-weight">CÂN NẶNG (KG)</label>
-                  <input type="number" id="prof-weight" class="search-bar__input" min="20" max="180" step="0.5"
+                  <input type="number" id="prof-weight" class="search-bar__input" min="30" max="150" step="0.5"
                          value="${profile.weight || ''}" placeholder="vd: 55" style="padding-left:var(--sp-3);" />
                 </div>
               </div>
@@ -349,7 +380,7 @@ const NF_PageProfile = (() => {
   function setupEvents(container, isOnboarding = false) {
     const inputs = container.querySelectorAll('#form-user-profile input, #form-user-profile select');
     inputs.forEach(input => {
-      input.addEventListener('input', () => updateMetricsDisplay(container));
+      input.addEventListener('input', () => { input.classList.remove('is-invalid'); updateMetricsDisplay(container); });
       input.addEventListener('change', () => updateMetricsDisplay(container));
     });
 
@@ -357,8 +388,14 @@ const NF_PageProfile = (() => {
     const btnSave = container.querySelector('#btn-save-profile');
     btnSave.onclick = () => {
       const data = getFormData(container);
-      const metrics = calculateMetrics(data);
+      clearInvalid(container);
 
+      const check = NF_Storage.validateProfile(data);
+      if (!check.ok) {
+        markInvalid(container, check.errors);
+        return;
+      }
+      const metrics = calculateMetrics(data);
       if (!metrics) {
         NF_UI.showToast('Vui lòng điền đầy đủ các thông tin bắt buộc (Tuổi, Chiều cao, Cân nặng, Giới tính)', 'warning');
         return;
@@ -375,6 +412,7 @@ const NF_PageProfile = (() => {
 
       NF_Storage.saveProfile(fullProfile);
       NF_Storage.setOnboarded();
+      if (typeof NF_Notifications !== 'undefined') NF_Notifications.init();
       NF_UI.showToast('Đã lưu hồ sơ dinh dưỡng cá nhân thành công!', 'success');
       updateMetricsDisplay(container);
 
@@ -511,53 +549,58 @@ const NF_PageProfile = (() => {
 
     const btnGetMealPlan = container.querySelector('#btn-get-ai-meal-plan');
     const mealPlanOutput = container.querySelector('#ai-meal-plan-output');
+    let generating = false;
 
-    btnGetMealPlan.onclick = async () => {
+    const generatePlan = async () => {
+      if (generating) return; // chống bấm liên tiếp
       const data = getFormData(container);
+      const check = NF_Storage.validateProfile(data);
+      if (!check.ok) {
+        markInvalid(container, check.errors);
+        return;
+      }
       const metrics = calculateMetrics(data);
-
       if (!metrics) {
         NF_UI.showToast('Vui lòng nhập hồ sơ thể trạng để AI có căn cứ xây dựng thực đơn chính xác', 'warning');
         return;
       }
-
       if (!NF_Gemini.isConfigured()) {
         NF_PageCamera.showApiKeyModal();
         return;
       }
 
-      NF_UI.showInlineLoading(btnGetMealPlan);
+      generating = true;
+      NF_UI.showInlineLoading(btnGetMealPlan, 'Đang lập thực đơn…');
       mealPlanOutput.innerHTML = `
-        <div class="loading-container">
-          <div class="loading-spinner"></div>
-          <p class="loading-text">Gemini AI đang tính toán thực đơn tối ưu cho chỉ số TDEE ${metrics.tdee} kcal...</p>
-        </div>
+        <div class="loading-text" style="margin-bottom:var(--sp-2);">Gemini AI đang tính toán thực đơn tối ưu cho chỉ số TDEE ${metrics.tdee} kcal...</div>
+        ${NF_UI.createSkeleton(6)}
       `;
 
       try {
-        const fullProfile = {
-          ...data,
-          ...metrics
-        };
-
-        const plan = await NF_Gemini.suggestMealPlan(fullProfile);
-        NF_UI.hideInlineLoading(btnGetMealPlan);
-        renderMealPlan(mealPlanOutput, plan);
+        const avoid = recentPlans.slice(-3).flatMap((p) => p.meals.map((m) => m.name));
+        const { plan, ok } = await NF_Gemini.suggestMealPlanVerified({ ...data, ...metrics }, { avoid });
+        recentPlans.push(plan);
+        if (recentPlans.length > 3) recentPlans.shift();
+        renderMealPlan(mealPlanOutput, plan, { warn: !ok, onSwap: generatePlan });
         NF_UI.showToast('AI đã hoàn thành gợi ý thực đơn!', 'success');
       } catch (err) {
         console.error('Meal plan error:', err);
-        NF_UI.hideInlineLoading(btnGetMealPlan);
-        const msg = NF_Gemini.getErrorMessage(err);
+        const msg = NF_UI.escapeHtml(NF_Gemini.getErrorMessage(err));
         mealPlanOutput.innerHTML = `
           <div class="advice-box advice-box--warning">
             <p><strong>Lỗi:</strong> ${msg}</p>
           </div>
         `;
+      } finally {
+        generating = false;
+        NF_UI.hideInlineLoading(btnGetMealPlan);
       }
     };
+
+    btnGetMealPlan.onclick = generatePlan;
   }
 
-  function renderMealPlan(targetEl, plan) {
+  function renderMealPlan(targetEl, plan, opts = {}) {
     const mealCardClasses = {
       'Bữa Sáng': 'meal-plan-card--morning',
       'Bữa Trưa': 'meal-plan-card--lunch',
@@ -569,18 +612,18 @@ const NF_PageProfile = (() => {
       <div style="animation:fadeIn var(--duration-normal) var(--ease-out); display:flex; flex-direction:column; gap:var(--sp-3);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <h4 style="font-size:var(--fs-md); font-weight:800; color:var(--slate-900);">${NF_UI.escapeHtml(plan.planName)}</h4>
-          <span class="tag tag--primary">${plan.totalCalories} kcal</span>
+          <span class="tag tag--primary">${NF_UI.num(plan.totalCalories)} kcal</span>
         </div>
 
         ${(plan.meals || []).map((m, idx) => `
-          <div class="meal-plan-card ${mealCardClasses[m.type] || 'meal-plan-card--lunch'}">
+          <div class="meal-plan-card is-interactive ${mealCardClasses[m.type] || 'meal-plan-card--lunch'}">
             <div class="meal-plan-card__header">
-              <span class="meal-plan-card__type">${NF_UI.getMealIcon(m.type)} ${m.type}</span>
-              <span class="meal-plan-card__cal">${m.calories} kcal</span>
+              <span class="meal-plan-card__type">${NF_UI.getMealIcon(m.type)} ${NF_UI.escapeHtml(m.type)}</span>
+              <span class="meal-plan-card__cal">${NF_UI.num(m.calories)} kcal</span>
             </div>
             <div class="meal-plan-card__name">${NF_UI.escapeHtml(m.name)}</div>
             <div class="meal-plan-card__macros">
-              Carb: ${m.carb}g • Protein: ${m.protein}g • Fat: ${m.fat}g
+              Carb: ${NF_UI.num(m.carb)}g • Protein: ${NF_UI.num(m.protein)}g • Fat: ${NF_UI.num(m.fat)}g
             </div>
             ${m.description ? `<div class="meal-plan-card__desc">${NF_UI.escapeHtml(m.description)}</div>` : ''}
             <button class="btn btn--outline btn--sm btn-add-plan-meal" data-idx="${idx}" 
@@ -596,8 +639,21 @@ const NF_PageProfile = (() => {
             <strong>Lời khuyên từ AI:</strong> ${NF_UI.escapeHtml(plan.advice)}
           </div>
         ` : ''}
+
+        ${opts.warn ? `
+          <div class="text-xs text-muted" style="line-height:1.5;">
+            <i class="fa-solid fa-circle-info"></i> Thực đơn có thể lệch nhu cầu, hãy bấm Đổi thực đơn.
+          </div>
+        ` : ''}
+
+        <button class="btn btn--outline" id="btn-swap-meal-plan" style="width:100%;">
+          <i class="fa-solid fa-shuffle"></i> Đổi thực đơn khác
+        </button>
       </div>
     `;
+
+    const btnSwap = targetEl.querySelector('#btn-swap-meal-plan');
+    if (btnSwap && typeof opts.onSwap === 'function') btnSwap.onclick = opts.onSwap;
 
     // Event listener cho nút thêm từng món từ thực đơn vào nhật ký
     const addBtns = targetEl.querySelectorAll('.btn-add-plan-meal');
@@ -614,14 +670,15 @@ const NF_PageProfile = (() => {
           protein: m.protein,
           fat: m.fat,
           carb: m.carb,
-          fiber: 2,
+          fiber: 0,
+          tags: Array.isArray(m.tags) ? m.tags : [],
           mealType: m.type,
           source: 'ai_plan',
           time: NF_UI.getTimeNow(),
         };
 
         NF_Storage.addDiaryEntry(entry, NF_Storage.getToday());
-        NF_UI.showToast(`Đã thêm "${NF_UI.escapeHtml(m.name)}" (${m.type}) vào nhật ký!`, 'success');
+        NF_UI.showToast(`Đã thêm "${NF_UI.escapeHtml(m.name)}" (${NF_UI.escapeHtml(m.type)}) vào nhật ký!`, 'success');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-check"></i> Đã thêm';
       };

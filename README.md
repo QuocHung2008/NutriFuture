@@ -12,16 +12,17 @@ NutriFuture là ứng dụng web di động (Mobile Web App) được thiết k�
 | # | Tính năng | Chi tiết kỹ thuật & Tính khoa học |
 |---|-----------|-----------------------------------|
 | 1 | 📷 **Camera AI Nhận Diện Món Ăn** | Chụp ảnh món ăn trực tiếp từ camera hoặc tải ảnh lên. Mô hình **Gemini 2.0 Flash Vision** phân tích thị giác máy tính, nhận diện tên món, khẩu phần, ước tính calo, đạm, béo, tinh bột, chất xơ và đưa ra lời khuyên dinh dưỡng học đường. |
-| 2 | 🔍 **Tra Cứu Dinh Dưỡng AI** | Không phụ thuộc vào cơ sở dữ liệu hardcoded cố định. Sử dụng **Gemini Text API** tra cứu tức thì thành phần dinh dưỡng của mọi món ăn Việt Nam kèm phân tích vi chất và lịch sử tìm kiếm. |
+| 2 | 🔍 **Tra Cứu Dinh Dưỡng (CSDL nội bộ ẩn + AI)** | Nhập **đúng tên** một món trong CSDL nội bộ (`js/data/foods.js`, không hiển thị ở bất kỳ đâu trên giao diện) → số liệu lấy từ CSDL, **AI chỉ bổ sung nhận xét** (số calo/đạm/béo/carb của CSDL không bao giờ bị AI ghi đè; nhận xét được lưu đệm để không tốn quota, và món trong CSDL vẫn hiện số liệu khi mất mạng/hết quota/không có key). Món ngoài CSDL → **Gemini Text API** phân tích hoàn toàn. Khớp "đúng" = bằng nhau hoàn toàn sau chuẩn hóa (hoa/thường, khoảng trắng, dấu), không khớp gần đúng. |
 | 3 | ⚖️ **Cá Nhân Hóa Chỉ Số Thể Trạng** | **Không dùng số liệu mẫu**: Người dùng tự nhập Tuổi, Giới tính, Chiều cao, Cân nặng và Mức độ vận động. Máy tính toán tự động theo công thức y khoa chuẩn quốc tế: **BMI (WHO)**, **BMR (Mifflin - St Jeor)**, **TDEE (ACSM)**, **Nhu cầu Nước** và **Tỷ lệ Macro khuyến nghị của Viện Dinh Dưỡng Quốc Gia VN**. |
-| 4 | 💡 **AI Tư Vấn Thực Đơn 1 Ngày** | Dựa trên chỉ số thể trạng và TDEE thực tế của người dùng, Gemini AI tự động lập thực đơn 4 bữa thuần Việt cân đối các nhóm chất và cho phép thêm trực tiếp vào nhật ký. |
+| 4 | 💡 **AI Tư Vấn Thực Đơn 1 Ngày + "Đổi thực đơn khác"** | Dựa trên chỉ số thể trạng và TDEE thực tế, Gemini lập thực đơn 4 bữa (3 chính + 1 phụ) thuần Việt. Nút **Đổi thực đơn khác** sinh thực đơn mới, tránh món của tối đa 3 thực đơn gần nhất; kết quả được kiểm tra (tổng kcal ±10% TDEE, có rau xanh và trái cây) và tự thử lại 1 lần nếu chưa đạt. |
 | 5 | 📖 **Nhật Ký Dinh Dưỡng & Biểu Đồ Macro** | Ghi nhận bữa ăn theo ngày, hiển thị tỷ lệ % Calo nạp vào so với TDEE, biểu đồ Doughnut Chart phân tích 3 chất đa lượng (Carb - Protein - Fat) bằng **Chart.js**. |
 | 6 | 📈 **Lịch Sử, Thống Kê & Sao Lưu JSON** | Biểu đồ cột theo dõi xu hướng calo 7 ngày, danh sách ngày đã ghi nhận và tính năng **Xuất (Export) / Khôi phục (Import) tệp JSON** giúp bảo toàn dữ liệu trên thiết bị, hỗ trợ khôi phục cả file backup định dạng cũ (migration theo version). |
 | 7 | 📴 **PWA — Cài đặt & Chạy Offline** | Có `manifest.json` + Service Worker: cài được lên màn hình chính như app thật, giao diện vẫn hoạt động khi mất mạng (dữ liệu vốn local-first); riêng các lệnh gọi Gemini AI luôn cần mạng thật. |
 | 8 | 🔔 **Nhắc Nhở Uống Nước & Ghi Nhật Ký** | Dùng Notification API nhắc uống nước theo chu kỳ tùy chỉnh và nhắc ghi nhật ký nếu đến tối chưa ghi bữa nào — bật/tắt và tùy chỉnh trong tab Hồ sơ. |
 | 9 | ⚠️ **Cảnh Báo Cân Bằng Năng Lượng Theo TDEE** | Ngay trong Nhật ký, hệ thống so sánh calo đã nạp với TDEE mục tiêu và đưa ra nhận định tức thời (dư/thiếu/cân đối) để hỗ trợ điều chỉnh bữa ăn tiếp theo. |
 | 10 | 🌗 **Giao Diện Sáng/Tối (Dark Mode)** | Chuyển đổi nhanh qua nút trên header, tự nhớ lựa chọn và tôn trọng cài đặt hệ thống (`prefers-color-scheme`) trong lần mở đầu tiên. |
-| 11 | 👋 **Onboarding Lần Đầu** | Người dùng mới bắt buộc phải nhập hồ sơ thể trạng trước khi có thể vào các tab khác, đảm bảo mọi chỉ số (TDEE, cảnh báo dinh dưỡng...) đều chính xác ngay từ đầu. |
+| 12 | 🎮 **Học Mà Chơi (Gamification)** | Điểm, chuỗi ngày, huy hiệu, 5 câu đố dinh dưỡng mỗi ngày (ngân hàng câu hỏi đã kiểm duyệt + câu do AI sinh khi có key) và thử thách tuần. Điểm được tính lại từ nhật ký thật (chỉ món ghi đúng ngày mới tính chuỗi/thử thách), có giới hạn theo ngày để chống "cày điểm". Lối vào là thẻ trên Trang chủ. |
+| 11 | 👋 **Onboarding Lần Đầu** | Người dùng mới (hoặc hồ sơ không hợp lệ: tuổi 15–22, cao 120–220 cm, nặng 30–150 kg) bắt buộc phải nhập hồ sơ thể trạng trước khi có thể vào các tab khác — cổng chặn kiểm tra dữ liệu thật chứ không chỉ dựa vào cờ, đảm bảo mọi chỉ số (TDEE, cảnh báo dinh dưỡng...) đều chính xác ngay từ đầu. |
 
 ---
 
@@ -144,21 +145,41 @@ NutriFuture/
 ├── js/
 │   ├── config.template.js      # Mẫu cấu hình Gemini API (commit lên Git, KHÔNG chứa key thật)
 │   ├── config.js                # Sinh tự động lúc deploy (chứa key thật) — KHÔNG commit, đã trong .gitignore
-│   ├── storage.js              # Quản lý LocalStorage, index ngày, Xuất/Nhập JSON có migration version
-│   ├── gemini.js               # Wrapper gọi Google Gemini API (Text & Vision), chọn model, timeout, giới hạn retry
-│   ├── ui.js                   # Tiện ích giao diện: Toast, Modal, Skeleton, Format
+│   ├── storage.js              # Quản lý LocalStorage, index ngày, kiểm tra hồ sơ, Xuất/Nhập JSON có migration version
+│   ├── data/
+│   │   ├── foods.js            # CSDL dinh dưỡng nội bộ (ẨN) — sinh bằng tools/build-foods.py
+│   │   └── quiz.js             # Ngân hàng câu đố dinh dưỡng — sinh bằng tools/build-quiz.py
+│   ├── foods.js                # NF_Foods: khớp tên món "đúng" với CSDL (không lộ danh sách ra giao diện)
+│   ├── gemini.js               # Wrapper Gemini (Text & Vision): tra cứu, nhận xét món CSDL, thực đơn, sinh câu đố
+│   ├── game-engine.js          # NF_Game: điểm, huy hiệu, streak, thử thách tuần, câu đố (logic thuần, có unit test)
+│   ├── motion.js               # Chuyển động card (chỉ gắn class; hiệu ứng nằm trong CSS)
+│   ├── ui.js                   # Tiện ích giao diện: Toast, Modal (persistent), Skeleton, Format
 │   ├── notifications.js        # Nhắc uống nước & ghi nhật ký (Notification API)
-│   ├── app.js                  # Điều phối Router Hash & Vòng đời ứng dụng
+│   ├── app.js                  # Router Hash, cổng nhập hồ sơ, vòng đời ứng dụng
 │   └── pages/
 │       ├── home.js             # Trang chủ: Tổng quan calo, nước uống, thống kê
 │       ├── camera.js           # Camera AI: Chụp ảnh trực tiếp & phân tích thị giác (resize trước khi gửi)
-│       ├── lookup.js           # Tra cứu AI: Tìm kiếm món ăn & gợi ý thông minh
+│       ├── lookup.js           # Tra cứu: CSDL nội bộ (ẩn) + nhận xét AI, hoặc hoàn toàn AI
 │       ├── profile.js          # Cá nhân hóa: BMI/BMR/TDEE, chọn Model Gemini, cài đặt Nhắc nhở
 │       ├── diary.js            # Nhật ký: Ghi nhận bữa ăn, cảnh báo TDEE, biểu đồ Macro (cache Chart.js instance)
-│       └── history.js          # Lịch sử: Biểu đồ xu hướng 7 ngày & sao lưu dữ liệu
+│       ├── history.js          # Lịch sử: Biểu đồ xu hướng 7 ngày & sao lưu dữ liệu
+│       └── game.js             # Học mà chơi: câu đố, thử thách tuần, huy hiệu
+├── tests/                      # Unit test (node --test) cho CSDL, khớp tên và engine game — KHÔNG deploy
+├── tools/                      # Script sinh dữ liệu & kiểm tra CSDL (build-foods.py, audit-foods.js) — KHÔNG deploy
 ├── .gitignore                  # Bỏ qua js/config.js (key thật, sinh tự động) và file tạm hệ thống
 └── README.md                   # Tài liệu hướng dẫn chi tiết
 ```
+
+---
+
+## 🧪 Kiểm thử
+
+```bash
+node --test tests/*.test.js     # 27 test: CSDL, khớp tên, điểm/streak/huy hiệu/thử thách tuần/câu đố
+node tools/audit-foods.js       # đối chiếu kcal ghi trong CSDL với kcal tính từ macro (4-4-9)
+```
+
+Sau mỗi thay đổi: mở DevTools kiểm tra Console không có lỗi CSP, thử offline (DevTools → Network → Offline) và thử trên điện thoại thật qua HTTPS.
 
 ---
 

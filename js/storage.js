@@ -14,7 +14,24 @@ const NF_Storage = (() => {
     ONBOARDED: 'nf_onboarded',
     DIARY_INDEX: 'nf_diary_dates_index',
     WATER_INDEX: 'nf_water_dates_index',
+    GAME: 'nf_game',
   };
+
+  /* Giới hạn hợp lệ của hồ sơ (đối tượng: học sinh 15–22 tuổi theo yêu cầu đề tài) */
+  const PROFILE_LIMITS = {
+    age: { min: 15, max: 22, label: 'Tuổi' },
+    height: { min: 120, max: 220, label: 'Chiều cao (cm)' },
+    weight: { min: 30, max: 150, label: 'Cân nặng (kg)' },
+  };
+
+  /** Phát sự kiện toàn cục để module khác (game...) lắng nghe mà không cần móc vào từng nơi gọi. */
+  function _emit(name, detail) {
+    try {
+      if (typeof window !== 'undefined' && typeof CustomEvent === 'function') {
+        window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
+      }
+    } catch (e) { /* không để lỗi sự kiện làm hỏng việc lưu dữ liệu */ }
+  }
 
   /* ─── Helpers ─── */
 
@@ -51,6 +68,31 @@ const NF_Storage = (() => {
   function saveProfile(data) {
     data.updatedAt = new Date().toISOString();
     _set(KEYS.PROFILE, data);
+    _emit('nf:profile', {});
+  }
+
+  /**
+   * Kiểm tra dữ liệu hồ sơ. Trả về { ok, errors: { field: 'thông báo' } }.
+   * Dùng chung cho form Hồ sơ (báo lỗi từng ô) và cổng chặn (hasValidProfile).
+   */
+  function validateProfile(p) {
+    const errors = {};
+    p = p || {};
+    if (p.gender !== 'male' && p.gender !== 'female') errors.gender = 'Vui lòng chọn giới tính';
+    ['age', 'height', 'weight'].forEach((f) => {
+      const lim = PROFILE_LIMITS[f];
+      const v = Number(p[f]);
+      if (p[f] === '' || p[f] == null || !isFinite(v) || v < lim.min || v > lim.max) {
+        errors[f] = `${lim.label} phải từ ${lim.min} đến ${lim.max}`;
+      }
+    });
+    return { ok: Object.keys(errors).length === 0, errors };
+  }
+
+  /** Hồ sơ đã lưu có hợp lệ và đã tính đủ chỉ số (tdee > 0) không — cổng chặn dùng hàm này, KHÔNG dùng cờ. */
+  function hasValidProfile() {
+    const p = getProfile();
+    return !!p && validateProfile(p).ok && Number(p.tdee) > 0;
   }
 
   function getProfile() {
@@ -138,6 +180,7 @@ const NF_Storage = (() => {
     entry.createdAt = new Date().toISOString();
     entries.push(entry);
     saveDiary(d, entries);
+    _emit('nf:diary', { action: 'add', date: _dateKey(d), entry });
     return entry;
   }
 
@@ -146,6 +189,7 @@ const NF_Storage = (() => {
     let entries = getDiary(d);
     entries = entries.filter(e => e.id !== entryId);
     saveDiary(d, entries);
+    _emit('nf:diary', { action: 'remove', date: _dateKey(d) });
   }
 
   /* ─── Water Tracking (theo ngày) ─── */
@@ -163,6 +207,7 @@ const NF_Storage = (() => {
     const newVal = current + amountMl;
     localStorage.setItem(key, String(newVal));
     _updateIndex(KEYS.WATER_INDEX, KEYS.WATER_PREFIX, _waterIndexPredicate, dateStr);
+    _emit('nf:water', { date: dateStr });
     return newVal;
   }
 
@@ -185,7 +230,21 @@ const NF_Storage = (() => {
     history.unshift({ ...item, searchedAt: new Date().toISOString() });
     if (history.length > 20) history.pop();
     _set(KEYS.LOOKUP_HISTORY, history);
+    _emit('nf:lookup', { name: item && item.name });
   }
+
+  /** Cập nhật mục tra cứu mới nhất (dùng khi nhận xét AI đến sau khi kết quả đã hiển thị/lưu). */
+  function updateLatestLookup(patch) {
+    const history = getLookupHistory();
+    if (!history.length) return;
+    history[0] = { ...history[0], ...patch, searchedAt: history[0].searchedAt };
+    _set(KEYS.LOOKUP_HISTORY, history);
+  }
+
+  /* ─── Game (điểm, huy hiệu, chuỗi ngày, câu đố) — được sanitize lại khi đọc ở NF_Game ─── */
+
+  function getGame() { return _get(KEYS.GAME); }
+  function saveGame(state) { _set(KEYS.GAME, state); }
 
   /* ─── Lấy tất cả ngày có dữ liệu diary (đọc từ index — O(1) thay vì quét toàn bộ localStorage) ─── */
 
@@ -228,6 +287,7 @@ const NF_Storage = (() => {
       profile: getProfile(),
       onboarded: isOnboarded(),
       lookupHistory: getLookupHistory(),
+      game: getGame(),
       diary: {},
       water: {}
     };
@@ -290,6 +350,8 @@ const NF_Storage = (() => {
     if (data.onboarded) setOnboarded();
     if (data.lookupHistory) _set(KEYS.LOOKUP_HISTORY, data.lookupHistory);
 
+    if (data.game && typeof data.game === 'object') _set(KEYS.GAME, data.game);
+
     if (data.diary) {
       Object.entries(data.diary).forEach(([date, entries]) => {
         _set(KEYS.DIARY_PREFIX + date, entries);
@@ -300,6 +362,10 @@ const NF_Storage = (() => {
         localStorage.setItem(KEYS.WATER_PREFIX + date, String(amount));
       });
     }
+    // Ghi thẳng vào localStorage ở trên không đi qua saveDiary/addWater nên index ngày không
+    // được cập nhật → Lịch sử/Báo cáo sẽ "mất" dữ liệu vừa nhập. Dựng lại index sau khi nhập.
+    _rebuildIndex(KEYS.DIARY_INDEX, KEYS.DIARY_PREFIX, _diaryIndexPredicate);
+    _rebuildIndex(KEYS.WATER_INDEX, KEYS.WATER_PREFIX, _waterIndexPredicate);
 
     return { success: true, migratedFrom: 2 };
   }
@@ -414,6 +480,12 @@ const NF_Storage = (() => {
     // Profile
     saveProfile,
     getProfile,
+    validateProfile,
+    hasValidProfile,
+    PROFILE_LIMITS,
+    // Game
+    getGame,
+    saveGame,
     // Onboarding
     isOnboarded,
     setOnboarded,
@@ -431,6 +503,7 @@ const NF_Storage = (() => {
     // Lookup
     getLookupHistory,
     addLookupHistory,
+    updateLatestLookup,
     // Export/Import
     exportAll,
     downloadExport,

@@ -12,9 +12,12 @@ const NF_App = (() => {
     '#profile': NF_PageProfile,
     '#diary': NF_PageDiary,
     '#history': NF_PageHistory,
+    '#game': NF_PageGame,
   };
 
   let currentRoute = null;
+  let lastProfileMode = null;   // true = đang ở chế độ nhập hồ sơ bắt buộc (onboarding)
+  let gateNoticeShown = false;  // thông báo chặn (modal) chỉ hiện 1 lần mỗi lần tải trang
 
   function init() {
     console.log('[NutriFuture] Initializing application...');
@@ -25,8 +28,8 @@ const NF_App = (() => {
     // Đồng bộ icon + gắn sự kiện cho nút chuyển giao diện sáng/tối
     NF_UI.initThemeToggle();
 
-    // Khởi động vòng lặp nhắc nhở (uống nước / ghi nhật ký) nếu người dùng đã bật
-    if (typeof NF_Notifications !== 'undefined') {
+    // Vòng lặp nhắc nhở chỉ chạy khi đã có hồ sơ hợp lệ (nếu chưa, sẽ được khởi động sau khi lưu hồ sơ)
+    if (NF_Storage.hasValidProfile() && typeof NF_Notifications !== 'undefined') {
       NF_Notifications.init();
     }
 
@@ -36,36 +39,75 @@ const NF_App = (() => {
     // Xử lý các click vào bottom nav
     setupNav();
 
-    // Điều hướng lần đầu — người dùng CHƯA nhập hồ sơ (onboarding) sẽ luôn được
-    // đưa vào tab Hồ sơ trước, không cho vào các tab khác cho đến khi lưu thông tin
+    // Điều hướng lần đầu — chưa có hồ sơ hợp lệ thì luôn vào Hồ sơ trước
     if (!window.location.hash) {
-      window.location.hash = NF_Storage.isOnboarded() ? '#home' : '#profile?onboarding=1';
+      window.location.hash = NF_Storage.hasValidProfile() ? '#home' : '#profile?onboarding=1';
     } else {
       handleRoute();
     }
 
-    // Modal close on ESC key
+    // Đóng modal bằng ESC — trừ modal "persistent" (thông báo bắt buộc nhập hồ sơ)
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !NF_UI.isModalPersistent()) {
         NF_UI.closeModal();
       }
     });
+  }
+
+  /** Thông báo yêu cầu nhập hồ sơ: modal không đóng được (1 lần/lần tải trang), sau đó dùng toast. */
+  function notifyProfileRequired() {
+    if (gateNoticeShown) {
+      NF_UI.showToast('Hãy nhập thông tin cá nhân trước khi dùng các mục khác', 'warning');
+      return;
+    }
+    gateNoticeShown = true;
+    const needsUpdate = !!NF_Storage.getProfile();
+    NF_UI.showModal(`
+      <div class="confirm-dialog">
+        <div class="confirm-dialog__icon"><i class="fa-solid fa-user-pen"></i></div>
+        <p class="confirm-dialog__msg">${needsUpdate
+          ? 'Hồ sơ của bạn cần được cập nhật để tiếp tục'
+          : 'Hãy nhập thông tin cá nhân để bắt đầu'}</p>
+        <div class="confirm-dialog__actions">
+          <button class="btn btn--primary" id="gate-notice-ok">Nhập thông tin ngay</button>
+        </div>
+      </div>
+    `, { persistent: true });
+    const ok = document.getElementById('gate-notice-ok');
+    if (ok) {
+      ok.onclick = () => {
+        NF_UI.closeModal();
+        const first = document.querySelector('#prof-name');
+        if (first) first.focus();
+      };
+    }
+  }
+
+  /** Cổng chặn: chưa có hồ sơ hợp lệ thì chỉ được vào #profile. Trả về true nếu được đi tiếp. */
+  function guard(path) {
+    if (path === '#profile' || NF_Storage.hasValidProfile()) return true;
+    notifyProfileRequired();
+    window.location.hash = '#profile?onboarding=1';
+    return false;
   }
 
   function handleRoute() {
     const rawHash = window.location.hash || '#home';
     let [path, queryStr] = rawHash.split('?');
 
-    // Chặn điều hướng sang trang khác nếu chưa hoàn tất onboarding (nhập hồ sơ lần đầu)
-    if (!NF_Storage.isOnboarded() && path !== '#profile') {
-      window.location.hash = '#profile?onboarding=1';
-      return;
-    }
+    if (!guard(path)) return;
 
     const pageHandler = routes[path] || routes['#home'];
     const contentContainer = document.getElementById('app-content');
 
     if (!contentContainer) return;
+
+    // Ở #profile, chế độ onboarding do TRẠNG THÁI hồ sơ quyết định (không phụ thuộc ?onboarding=1),
+    // để bấm tab "Hồ sơ" khi chưa có dữ liệu vẫn thấy banner chào mừng và tự về Trang chủ sau khi lưu.
+    const profileMode = !NF_Storage.hasValidProfile();
+    if (path === '#profile' && currentRoute === '#profile' && lastProfileMode === profileMode) {
+      return; // đã ở đúng trang này — không dựng lại form (tránh mất dữ liệu đang gõ)
+    }
 
     // Dừng camera nếu rời khỏi trang camera
     if (currentRoute === '#camera' && path !== '#camera') {
@@ -75,9 +117,9 @@ const NF_App = (() => {
     }
 
     currentRoute = path;
-    updateNavActive(path);
+    updateNavActive(path === '#game' ? '#home' : path);
 
-    // Xử lý tham số query (ví dụ: ?date=YYYY-MM-DD hoặc ?onboarding=1)
+    // Xử lý tham số query (ví dụ: ?date=YYYY-MM-DD)
     let queryParams = {};
     if (queryStr) {
       const pairs = queryStr.split('&');
@@ -94,14 +136,15 @@ const NF_App = (() => {
     if (path === '#diary') {
       pageHandler.render(contentContainer, queryParams.date || null);
     } else if (path === '#profile') {
-      pageHandler.render(contentContainer, { onboarding: queryParams.onboarding === '1' });
+      lastProfileMode = profileMode;
+      pageHandler.render(contentContainer, { onboarding: profileMode });
     } else {
       pageHandler.render(contentContainer);
     }
 
-    // Hiệu ứng vào trang (GSAP entrance + ScrollTrigger reveal) — an toàn nếu thư viện
-    // chưa tải xong hoặc bị chặn mạng, NF_Motion tự bỏ qua.
-    if (window.NF_Motion) {
+    // Chuyển động vào trang (CSS thuần, xem js/motion.js)
+    // (dùng typeof: `const NF_Motion` ở phạm vi script KHÔNG tạo thuộc tính window.NF_Motion)
+    if (typeof NF_Motion !== 'undefined') {
       NF_Motion.animatePage(contentContainer);
     }
   }
@@ -109,7 +152,7 @@ const NF_App = (() => {
   function setupNav() {
     const navButtons = document.querySelectorAll('.nav-btn');
     navButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         const targetHash = btn.getAttribute('data-target');
         if (targetHash) {
           window.location.hash = targetHash;

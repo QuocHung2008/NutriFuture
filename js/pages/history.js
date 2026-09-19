@@ -114,7 +114,7 @@ const NF_PageHistory = (() => {
               ${allDates.length > 0 ? allDates.slice(0, 15).map(dateStr => {
                 const daySummary = NF_Storage.getDiarySummary(dateStr);
                 return `
-                  <div class="history-date-card btn-view-diary-date" data-date="${dateStr}">
+                  <div class="history-date-card is-interactive btn-view-diary-date" data-date="${dateStr}">
                     <div>
                       <div class="history-date-card__date">
                         <i class="fa-solid fa-calendar-day" style="color:var(--primary-600); margin-right:var(--sp-1);"></i>

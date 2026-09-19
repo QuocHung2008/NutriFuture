@@ -6,6 +6,7 @@ const NF_UI = (() => {
   'use strict';
 
   let toastTimer = null;
+  let modalPersistent = false;
 
   /* ─── Toast Notification ─── */
 
@@ -44,16 +45,24 @@ const NF_UI = (() => {
     overlay.classList.add('modal--show');
     document.body.style.overflow = 'hidden';
 
-    if (options.closeOnOverlay !== false) {
+    // persistent: không đóng được bằng bấm nền hay phím ESC (chỉ đóng bằng nút trong modal)
+    modalPersistent = !!options.persistent;
+    overlay.onclick = null;
+    if (options.closeOnOverlay !== false && !modalPersistent) {
       overlay.onclick = (e) => {
         if (e.target === overlay) closeModal();
       };
     }
   }
 
+  function isModalPersistent() {
+    return modalPersistent;
+  }
+
   function closeModal() {
     const overlay = document.getElementById('modal-overlay');
     if (!overlay) return;
+    modalPersistent = false;
     overlay.classList.remove('modal--show');
     overlay.classList.add('hidden');
     document.body.style.overflow = '';
@@ -75,17 +84,30 @@ const NF_UI = (() => {
     `;
   }
 
-  function showInlineLoading(btn) {
-    if (!btn) return;
+  /**
+   * Trạng thái "đang xử lý" của nút: giữ nguyên kích thước, hiện spinner + chữ ngắn
+   * (không xóa trắng nội dung nút → không nhấp nháy). Gọi lặp khi đang loading sẽ bị bỏ qua.
+   */
+  function showInlineLoading(btn, label) {
+    if (!btn || btn.dataset.loading === '1') return;
+    btn.dataset.loading = '1';
     btn.dataset.originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = `<div class="loading-spinner loading-spinner--sm"></div>`;
+    btn.innerHTML = `<span class="loading-spinner loading-spinner--sm loading-spinner--light"></span>` +
+      (label ? `<span>${escapeHtml(label)}</span>` : '');
   }
 
   function hideInlineLoading(btn) {
     if (!btn) return;
     btn.disabled = false;
-    btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
+    if (btn.dataset.loading === '1') btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
+    delete btn.dataset.loading;
+  }
+
+  /** Ép về số hữu hạn (dữ liệu từ AI/localStorage luôn coi là không tin cậy trước khi đưa vào HTML). */
+  function num(v, fallback = 0) {
+    const n = Number(v);
+    return isFinite(n) ? n : fallback;
   }
 
   /* ─── Skeleton Loading ─── */
@@ -237,7 +259,7 @@ const NF_UI = (() => {
     localStorage.setItem(THEME_KEY, theme);
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', theme === 'dark' ? '#1c1814' : '#f26419');
+      metaThemeColor.setAttribute('content', theme === 'dark' ? '#1c1814' : '#054fd4');
     }
     _updateThemeIcon(theme);
   }
@@ -270,6 +292,8 @@ const NF_UI = (() => {
     showToast,
     showModal,
     closeModal,
+    isModalPersistent,
+    num,
     showLoading,
     showInlineLoading,
     hideInlineLoading,

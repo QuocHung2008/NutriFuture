@@ -44,6 +44,15 @@ const NF_PageHome = (() => {
 
     const bmiInfo = hasProfile ? NF_UI.getBMIClass(profile.bmi) : null;
 
+    // Tóm tắt điểm/chuỗi ngày cho thẻ "Học mà chơi" (chỉ đọc, không tốn quota)
+    let gameLine = 'Đố vui dinh dưỡng, tích điểm và nhận huy hiệu';
+    try {
+      if (typeof NF_Game !== 'undefined' && NF_Game) {
+        const g = NF_Game.getSummary();
+        gameLine = `⭐ ${NF_UI.formatNumber(g.points)} điểm • 🔥 ${g.streak} ngày liên tục`;
+      }
+    } catch (e) { /* không để lỗi game làm hỏng trang chủ */ }
+
     container.innerHTML = `
       <div class="page page--home">
         <!-- Hero Title -->
@@ -97,6 +106,18 @@ const NF_PageHome = (() => {
               <div>
                 <div class="section-label" style="margin-bottom:var(--sp-2);">TÍNH NĂNG CHÍNH</div>
                 <div class="quick-grid">
+                  <div class="quick-card quick-card--wide" onclick="location.hash='#game'">
+                    <div style="display:flex; align-items:center; gap:var(--sp-3);">
+                      <div class="quick-card__icon" style="background:var(--green-100); color:var(--green-700); margin-bottom:0; flex:0 0 auto;">
+                        <i class="fa-solid fa-gamepad"></i>
+                      </div>
+                      <div style="min-width:0;">
+                        <div class="quick-card__title" style="margin-bottom:0.15rem;">Học mà chơi</div>
+                        <div class="quick-card__desc">${gameLine}</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div class="quick-card" onclick="location.hash='#camera'">
                     <div class="quick-card__icon" style="background:var(--primary-100); color:var(--primary-700);">
                       <i class="fa-solid fa-camera-retro"></i>
@@ -230,11 +251,11 @@ const NF_PageHome = (() => {
           const pct = Math.min(Math.round((newWater / waterTarget) * 100), 100);
           waterProgEl.style.width = pct + '%';
         }
-        if (window.gsap) {
-          gsap.fromTo(waterBtn, { scale: 1 }, { scale: 1.12, duration: 0.16, yoyo: true, repeat: 1, ease: 'power2.out' });
-        }
-        if (reachedGoal && window.NF_Motion) {
-          NF_Motion.celebrate();
+        // Hiệu ứng "pop" 150 ms bằng CSS (không dùng thư viện)
+        waterBtn.classList.remove('pop');
+        void waterBtn.offsetWidth;
+        waterBtn.classList.add('pop');
+        if (reachedGoal) {
           NF_UI.showToast('Tuyệt vời! Bạn đã đạt mục tiêu nước hôm nay 💧🎉', 'success');
         } else {
           NF_UI.showToast(`Đã thêm 250ml nước (+250ml)!`, 'info');

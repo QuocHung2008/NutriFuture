@@ -588,12 +588,8 @@ h1, h2, h3, h4, h5, h6 {
    7. TRANG & TIÊU ĐỀ
    -------------------------------------------------------------------------- */
 
-.page { animation: pageIn var(--duration-slow) var(--ease-out); }
-
-@keyframes pageIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: none; }
-}
+.page { animation: pageFade 200ms var(--ease-out); }   /* trang chỉ mờ dần; card mang chuyển động chính (mục 22) */
+@keyframes pageFade { from { opacity: 0; } }
 
 .page__header { margin-bottom: var(--sp-6); }
 
@@ -776,9 +772,15 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--radius-lg);
 }
 
+/* SỬA LỖI chuyển động: trước đây nút chỉ nằm giữa nhờ flex (không có top/transform gốc), nhưng
+   :hover/:active lại đặt transform: translateY(-50%) scale(...) → nút NHẢY LÊN ~nửa chiều cao và phóng to.
+   Nay nút được neo cố định (top:50% + translateY(-50%)) và trạng thái hover/active chỉ đổi độ sáng/bóng —
+   không dịch chuyển, không đổi kích thước, không dùng easing nảy (spring). */
 .search-bar__btn {
   position: absolute;
+  top: 50%;
   right: 0.4rem;
+  transform: translateY(-50%);
   width: var(--search-btn-w, auto);
   display: inline-flex;
   align-items: center;
@@ -795,10 +797,14 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
   cursor: pointer;
   box-shadow: var(--glow-primary-sm);
-  transition: transform var(--duration-fast) var(--ease-spring), box-shadow var(--duration-fast) var(--ease-out);
+  transition: box-shadow var(--duration-fast) var(--ease-out),
+              filter var(--duration-fast) var(--ease-out);
 }
-.search-bar__btn:hover { transform: translateY(-50%) scale(1.03); box-shadow: var(--glow-primary); }
-.search-bar__btn:active { transform: translateY(-50%) scale(0.96); }
+@media (hover: hover) {
+  .search-bar__btn:hover:not(:disabled) { filter: brightness(1.06); box-shadow: var(--glow-primary); }
+}
+.search-bar__btn:active:not(:disabled) { filter: brightness(0.94); }
+.search-bar__btn:disabled { opacity: 0.75; cursor: progress; }
 
 select.search-bar__input {
   appearance: none;
@@ -1012,6 +1018,9 @@ select.search-bar__input {
 }
 .quick-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--primary-200); }
 .quick-card:active { transform: translateY(-1px) scale(0.99); }
+.quick-card--wide { grid-column: 1 / -1; }
+.quick-card .quick-card__icon { transition: transform var(--duration-normal) var(--ease-out); }
+@media (hover: hover) { .quick-card:hover .quick-card__icon { transform: scale(1.08); } }
 
 .quick-card__icon {
   width: 3.25rem;
@@ -1592,6 +1601,7 @@ body.camera-active #app-content { max-width: none; margin: 0; padding: 0; }
 .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-3); padding: var(--sp-6) var(--sp-4); text-align: center; }
 .loading-spinner { width: 2.25rem; height: 2.25rem; border: 3px solid var(--slate-200); border-top-color: var(--primary-500); border-radius: 50%; animation: spin 0.8s linear infinite; }
 .loading-spinner--sm { width: 1.125rem; height: 1.125rem; border-width: 2px; }
+.loading-spinner--light { border-color: rgba(255, 255, 255, 0.35); border-top-color: var(--white); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text { font-size: var(--fs-sm); color: var(--ink-muted); max-width: 28rem; line-height: 1.6; }
 
@@ -1600,14 +1610,112 @@ body.camera-active #app-content { max-width: none; margin: 0; padding: 0; }
 @keyframes shimmer { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-.reveal-pop { opacity: 1 !important; transform: none !important; }
-.ripple { display: none !important; }
+/* --------------------------------------------------------------------------
+   22. CHUYỂN ĐỘNG CARD (CSS thuần — js/motion.js chỉ thêm class) + GAME
+   Quy tắc: chỉ animate transform/opacity/box-shadow/filter; mỗi phần tử tối đa 1 loại
+   chuyển động; không có animation lặp vô hạn ngoài spinner và đường quét camera.
+   -------------------------------------------------------------------------- */
+
+/* "backwards" (KHÔNG dùng "forwards") để :hover vẫn hoạt động sau khi animation kết thúc */
+.motion-in {
+  animation: cardIn 320ms var(--ease-out) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 45ms);
+}
+@keyframes cardIn { from { opacity: 0; transform: translateY(12px); } }
+
+/* Card ở dưới màn hình: ẩn cho tới khi cuộn tới (IntersectionObserver đổi sang .motion-in, 1 lần) */
+.motion-pending { opacity: 0; }
+
+/* Card bấm được: nhấc nhẹ khi hover (chỉ thiết bị có chuột) và nhún khi nhấn */
+.is-interactive {
+  transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out), border-color 180ms var(--ease-out);
+}
+@media (hover: hover) {
+  .is-interactive:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--primary-200); }
+}
+.is-interactive:active { transform: scale(0.985); transition-duration: 120ms; }
+
+/* Thanh tiến trình chạy từ 0 đến giá trị thật khi vào trang */
+.progress-bar__fill.motion-fill { transform-origin: left center; animation: fillGrow 700ms var(--ease-out) 100ms backwards; }
+@keyframes fillGrow { from { transform: scaleX(0); } }
+
+/* Thẻ kết quả tra cứu: chỉ mờ dần (không trượt) để không giật khi thay khối loading */
+.result-card--fade { animation: fadeOnly var(--duration-normal) var(--ease-out); }
+@keyframes fadeOnly { from { opacity: 0; } }
+.result-card--fade .nutrient-box { animation: cardIn 320ms var(--ease-out) backwards; }
+.result-card--fade .nutrient-box:nth-child(1) { animation-delay: 80ms; }
+.result-card--fade .nutrient-box:nth-child(2) { animation-delay: 125ms; }
+.result-card--fade .nutrient-box:nth-child(3) { animation-delay: 170ms; }
+.result-card--fade .nutrient-box:nth-child(4) { animation-delay: 215ms; }
+
+/* Thẻ thực đơn: vạch màu bên trái dày 4 → 6 px khi hover (dùng inset shadow → không xô lệch nội dung) */
+.meal-plan-card { --mp-accent: var(--primary-500); box-shadow: inset 4px 0 0 var(--mp-accent); }
+.meal-plan-card--morning { --mp-accent: var(--amber-500); }
+.meal-plan-card--lunch   { --mp-accent: var(--primary-500); }
+.meal-plan-card--dinner  { --mp-accent: var(--purple-500); }
+.meal-plan-card--snack   { --mp-accent: var(--green-500); }
+@media (hover: hover) {
+  .meal-plan-card.is-interactive:hover { box-shadow: inset 6px 0 0 var(--mp-accent), var(--shadow-md); }
+}
+
+/* Xóa món khỏi nhật ký: thu gọn chiều cao + mờ 200 ms */
+.diary-entry.is-removing {
+  max-height: 0 !important; opacity: 0; overflow: hidden;
+  padding-top: 0; padding-bottom: 0; margin: 0; border-width: 0;
+  transition: max-height 200ms var(--ease-out), opacity 200ms var(--ease-out), padding 200ms var(--ease-out);
+}
+
+/* "Pop" ngắn (nút nước 150 ms, huy hiệu mới 200 ms) */
+.pop { animation: popOnce 150ms var(--ease-out); }
+@keyframes popOnce { 50% { transform: scale(1.1); } }
+
+/* Ô nhập sai */
+.is-invalid, .search-bar__input.is-invalid { border-color: var(--rose-500) !important; box-shadow: 0 0 0 3px var(--rose-100); }
+
+/* ---- Học mà chơi ---- */
+.quiz-question { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700; line-height: 1.45; margin-bottom: var(--sp-3); }
+.quiz-options { display: flex; flex-direction: column; gap: var(--sp-2); }
+.quiz-option {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%; min-height: 3rem;
+  padding: var(--sp-2) var(--sp-3); text-align: left; cursor: pointer;
+  background: var(--panel); border: 1.5px solid var(--line-strong); border-radius: var(--radius-lg);
+  font-size: var(--fs-sm); color: var(--ink-soft);
+  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+@media (hover: hover) { .quiz-option:not(:disabled):hover { border-color: var(--primary-400); background: var(--primary-50); } }
+.quiz-option__key {
+  flex: 0 0 auto; width: 1.75rem; height: 1.75rem; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-full); background: var(--slate-100); font-weight: 800; font-size: var(--fs-xs);
+}
+.quiz-option:disabled { cursor: default; }
+.quiz-option--correct { border-color: var(--green-500); background: var(--green-50); }
+.quiz-option--correct .quiz-option__key { background: var(--green-500); color: var(--white); }
+.quiz-option--wrong { border-color: var(--rose-500); background: var(--rose-50); }
+.quiz-option--wrong .quiz-option__key { background: var(--rose-500); color: var(--white); }
+.quiz-option--dim { opacity: 0.55; }
+
+.badge-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+.badge-tile {
+  text-align: center; padding: var(--sp-3); border-radius: var(--radius-lg);
+  background: var(--slate-50); border: 1px solid var(--line); color: var(--ink-faint);
+}
+.badge-tile__icon {
+  width: 2.75rem; height: 2.75rem; margin: 0 auto var(--sp-2); display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-full); background: var(--slate-200); font-size: var(--fs-md);
+}
+.badge-tile__name { font-weight: 800; font-size: var(--fs-sm); color: inherit; }
+.badge-tile__desc { font-size: var(--fs-xs); line-height: 1.4; margin-top: 0.15rem; }
+.badge-tile--earned { background: var(--amber-50); border-color: var(--amber-200); color: var(--ink-soft); }
+.badge-tile--earned .badge-tile__icon { background: var(--grad-primary); color: var(--white); }
+.badge-tile--new .badge-tile__icon { animation: popOnce 200ms var(--ease-out); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
+  .motion-pending { opacity: 1 !important; }
 }
