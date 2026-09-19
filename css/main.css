@@ -38,7 +38,11 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
 
 img, video, canvas, svg { display: block; max-width: 100%; }
 
@@ -458,7 +462,7 @@ h1, h2, h3, h4, h5, h6 {
   position: fixed;
   left: 0; right: 0; bottom: 0;
   z-index: var(--z-nav);
-  height: var(--bottombar-h);
+  height: calc(var(--bottombar-h) + env(safe-area-inset-bottom, 0px));
   padding: 0 var(--sp-2) env(safe-area-inset-bottom, 0px);
   display: flex;
   align-items: stretch;
@@ -467,11 +471,15 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--panel);
   border-top: 1px solid var(--line);
   box-shadow: 0 -10px 30px -16px rgba(5, 16, 54, 0.25);
-  /* Ép nav vào layer GPU riêng để trình duyệt mobile không "bóp méo/thu nhỏ" nó
-     trong lúc kéo giật (rubber-band) hoặc khi thanh địa chỉ Safari ẩn/hiện. */
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  will-change: transform;
+  /* Safari iOS có thể scale raster layer của fixed element trong lúc
+     rubber-band/visual-viewport thay đổi nếu nav bị ép vào GPU bằng transform.
+     Vì vậy nav tuyệt đối KHÔNG dùng transform/translateZ/will-change. */
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: layout paint style;
 }
 
 html, body {
@@ -1882,4 +1890,170 @@ body.camera-active #app-content { max-width: none; margin: 0; padding: 0; }
     transition-duration: 0.01ms !important;
   }
   .motion-pending { opacity: 1 !important; }
+}
+
+/* --------------------------------------------------------------------------
+   23. MOBILE PATCH — KHẮC PHỤC TRÀN / BẺ TỪNG CHỮ Ở CỤM BMI · TDEE · NƯỚC
+   --------------------------------------------------------------------------
+   Nguyên nhân:
+   - 3 metric-card vẫn chia 3 cột trên mobile nên mỗi card khá hẹp.
+   - .metric-card__value trước đây cho phép break-word, vì vậy các số như
+     "19.7", "2339", "1.9" bị trình duyệt bẻ thành từng chữ số.
+   - Nhãn/đơn vị cũng bị ép quá hẹp nên xuống dòng mất kiểm soát.
+
+   Cách sửa:
+   - Giữ bố cục 3 thẻ ngang trên điện thoại.
+   - Số liệu luôn nằm trên MỘT dòng.
+   - Font số co giãn theo viewport nhưng vẫn có giới hạn rõ ràng.
+   - Nhãn và đơn vị được phép xuống dòng theo TỪ, không bẻ từng ký tự.
+   - Không thay đổi layout desktop.
+   -------------------------------------------------------------------------- */
+
+.metric-card__value {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.metric-card__label {
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.metric-card__extra {
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+.bmi-badge {
+  max-width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+@media (max-width: 639px) {
+  .metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(0.45rem, 2.6vw, var(--sp-3));
+  }
+
+  .metric-card {
+    min-width: 0;
+    padding: clamp(0.75rem, 3vw, var(--sp-4)) clamp(0.45rem, 2vw, var(--sp-3));
+    overflow: hidden;
+  }
+
+  .metric-card__label {
+    font-size: clamp(0.625rem, 2.25vw, 0.75rem);
+    line-height: 1.28;
+    letter-spacing: 0.045em;
+  }
+
+  .metric-card__value {
+    font-size: clamp(1.5rem, 7.6vw, var(--fs-xl));
+    line-height: 1;
+    letter-spacing: -0.035em;
+  }
+
+  .metric-card__extra {
+    margin-top: clamp(0.45rem, 1.8vw, var(--sp-2));
+    font-size: clamp(0.625rem, 2.05vw, var(--fs-xs));
+    line-height: 1.3;
+  }
+
+  .metric-card .bmi-badge {
+    width: 100%;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+}
+
+@media (max-width: 359px) {
+  .metric-card {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+
+  .metric-card__value {
+    font-size: clamp(1.4rem, 7.4vw, 1.8rem);
+    letter-spacing: -0.04em;
+  }
+
+  .metric-card__label {
+    font-size: 0.59rem;
+    letter-spacing: 0.025em;
+  }
+
+  .metric-card__extra {
+    font-size: 0.59rem;
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+   24. MOBILE / SAFARI STABILITY + FONT FALLBACK
+   --------------------------------------------------------------------------
+   Mục tiêu:
+   - Không để Safari iOS phóng to/raster-scale thanh điều hướng khi vuốt.
+   - Không để hệ điều hành tự tăng cỡ chữ làm thay đổi layout.
+   - Nếu Sora / Plus Jakarta Sans không có glyph tiếng Việt hoặc chưa tải xong,
+     trình duyệt tự rơi xuống font hệ thống có hỗ trợ tiếng Việt.
+   - Không khóa zoom của người dùng (vẫn tôn trọng accessibility).
+   -------------------------------------------------------------------------- */
+
+html,
+body {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Hệ font có fallback Unicode rõ ràng. Browser fallback theo từng glyph, nên
+   chữ Việt vẫn hiển thị ngay cả khi web-font thiếu ký tự hoặc chưa tải. */
+:root {
+  --font-display: 'Sora', 'Plus Jakarta Sans', 'Noto Sans', 'Segoe UI',
+                   'Helvetica Neue', Arial, sans-serif;
+  --font-family: 'Plus Jakarta Sans', 'Sora', 'Noto Sans', 'Segoe UI',
+                 'Helvetica Neue', Arial, sans-serif;
+}
+
+@media (max-width: 1023px) {
+  #bottom-nav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    will-change: auto !important;
+    height: calc(var(--bottombar-h) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    touch-action: pan-y;
+  }
+
+  #bottom-nav .nav-btn {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Không cho nội dung chính tạo ra horizontal scroll trong Safari; dùng clip
+   để không biến body thành một scroll-container mới. Fallback cho browser cũ. */
+html,
+body {
+  overflow-x: clip;
+}
+
+@supports not (overflow: clip) {
+  html,
+  body { overflow-x: hidden; }
 }
