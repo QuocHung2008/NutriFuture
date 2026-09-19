@@ -434,6 +434,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 .header-date:hover { border-color: var(--primary-400); color: var(--primary-600); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 
+/* Trên màn hình hẹp, 3 nút hành động + logo 2 màu (gradient-clip) không đủ chỗ
+   → text-overflow:ellipsis cắt ngay giữa vùng gradient trông như chữ bị "vỡ/đè".
+   Giải pháp: nhường chỗ cho logo bằng cách thu gọn nút "Báo cáo" về icon-only. */
+@media (max-width: 480px) {
+  .header-date span { display: none; }
+  .header-date { padding: 0; width: 2.75rem; }
+  .logo__text { font-size: var(--fs-md); }
+}
+
 @media (min-width: 1024px) {
   #app-header { background: transparent; border-bottom: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .header-inner { padding: var(--sp-6) var(--sp-7) 0; justify-content: flex-end; }
@@ -457,6 +466,17 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--panel);
   border-top: 1px solid var(--line);
   box-shadow: 0 -10px 30px -16px rgba(5, 16, 54, 0.25);
+  /* Ép nav vào layer GPU riêng để trình duyệt mobile không "bóp méo/thu nhỏ" nó
+     trong lúc kéo giật (rubber-band) hoặc khi thanh địa chỉ Safari ẩn/hiện. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+}
+
+html, body {
+  /* Chặn hiệu ứng kéo giật (bounce) ở đầu/cuối trang — nguyên nhân chính khiến
+     thanh nav cố định trông như bị "co lại" khi người dùng kéo mạnh trang xuống. */
+  overscroll-behavior-y: none;
 }
 
 .nav-btn {
@@ -810,6 +830,9 @@ select.search-bar__input {
   appearance: none;
   border-radius: var(--radius-lg);
   padding-right: var(--sp-7);
+  /* select gốc của trình duyệt không hỗ trợ ellipsis khi đóng — chữ dài trên
+     điện thoại nhỏ sẽ bị cắt cứng ở lề phải. Giảm nhẹ cỡ chữ để hạn chế điều đó. */
+  font-size: var(--fs-sm);
   background-image:
     linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
     linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
@@ -842,6 +865,90 @@ select.search-bar__input {
 }
 
 .stat-card__unit { font-size: var(--fs-md); font-weight: 700; color: var(--ink-muted); white-space: nowrap; }
+
+/* --------------------------------------------------------------------------
+   11b. HUY HIỆU CẤP ĐỘ (game.js) — trang trí/hiệu ứng tăng dần theo tier
+   -------------------------------------------------------------------------- */
+
+.level-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.level-badge__icon {
+  flex-shrink: 0;
+  width: 3rem; height: 3rem;
+  border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-lg);
+  color: var(--white);
+  background: var(--grad-primary);
+  box-shadow: var(--glow-primary-sm);
+  z-index: 1;
+}
+
+.level-badge__body { flex: 1; min-width: 0; }
+.level-badge__row { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-1); }
+.level-badge__level { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-sm); color: var(--primary-600); }
+.level-badge__name { font-weight: 700; font-size: var(--fs-sm); color: var(--ink); overflow-wrap: break-word; }
+.level-badge__bar { height: 0.5rem; margin-bottom: var(--sp-1); }
+.level-badge__next { font-size: var(--fs-xs); color: var(--ink-muted); font-weight: 600; }
+
+/* Cấp 3-4 "rising": viền màu hổ phách + icon ánh sáng ấm hơn */
+.level-badge[data-tier="rising"] { border-color: var(--amber-500); }
+.level-badge[data-tier="rising"] .level-badge__icon { background: linear-gradient(135deg, var(--amber-500), var(--rose-500)); }
+
+/* Cấp 5-6 "elite": viền phát sáng + icon có quầng sáng đập nhẹ */
+.level-badge[data-tier="elite"] {
+  border-color: var(--rose-500);
+  box-shadow: 0 0 0 1px var(--rose-500) inset, var(--shadow-md);
+}
+.level-badge[data-tier="elite"] .level-badge__icon {
+  background: linear-gradient(135deg, var(--rose-500), var(--purple-500));
+  animation: levelIconPulse 2.4s ease-in-out infinite;
+}
+
+/* Cấp 7 "legend": viền gradient xoay + nền lấp lánh */
+.level-badge[data-tier="legend"] {
+  border: none;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    conic-gradient(from 0deg, var(--primary-500), var(--rose-500), var(--purple-500), var(--amber-500), var(--primary-500)) border-box;
+  border: 2px solid transparent;
+  animation: legendBorderSpin 6s linear infinite;
+  box-shadow: var(--shadow-lg);
+}
+.level-badge[data-tier="legend"]::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 45%);
+  pointer-events: none;
+}
+.level-badge[data-tier="legend"] .level-badge__icon {
+  background: conic-gradient(from 0deg, var(--primary-500), var(--rose-500), var(--purple-500), var(--amber-500), var(--primary-500));
+  animation: levelIconPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes levelIconPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 85, 120, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(255, 85, 120, 0); }
+}
+@keyframes legendBorderSpin {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .level-badge[data-tier="elite"] .level-badge__icon,
+  .level-badge[data-tier="legend"],
+  .level-badge[data-tier="legend"] .level-badge__icon { animation: none; }
+}
 
 .progress-bar {
   width: 100%;
@@ -911,6 +1018,19 @@ select.search-bar__input {
   letter-spacing: 0.08em;
   color: var(--ink-muted);
   margin-bottom: var(--sp-2);
+  /* Không bao giờ ngắt GIỮA một từ (tránh cảnh "B/M/I" xuống dòng từng ký tự
+     khi cột quá hẹp) — thà tràn nhẹ hoặc xuống dòng ở khoảng trắng còn hơn */
+  word-break: keep-all;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+
+/* Màn rất hẹp (điện thoại nhỏ): 3 cột đều nhau không còn đủ chỗ cho nhãn dài
+   như "NHU CẦU NƯỚC" → chuyển 2 cột, thẻ thứ 3 (Nước) chiếm trọn hàng dưới */
+@media (max-width: 380px) {
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-grid > .metric-card:last-child { grid-column: 1 / -1; }
+  .metric-card__label { font-size: 0.625rem; }
 }
 
 .metric-card__value {

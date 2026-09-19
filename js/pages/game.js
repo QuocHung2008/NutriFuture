@@ -25,8 +25,24 @@ const NF_PageGame = (() => {
     if (!el) return;
     const s = NF_Game.getSummary();
     const cap = NF_Game.CAPS;
+    const lv = s.level;
     el.innerHTML = `
-      <div class="card__label">ĐIỂM & CHUỖI NGÀY</div>
+      <div class="level-badge" data-tier="${lv.tier}">
+        <div class="level-badge__icon"><i class="fa-solid ${lv.icon}"></i></div>
+        <div class="level-badge__body">
+          <div class="level-badge__row">
+            <span class="level-badge__level">Cấp ${lv.level}</span>
+            <span class="level-badge__name">${esc(lv.name)}</span>
+          </div>
+          <div class="progress-bar level-badge__bar">
+            <div class="progress-bar__fill" style="width:${lv.progressPct}%;"></div>
+          </div>
+          <div class="level-badge__next">
+            ${lv.isMax ? 'Đã đạt cấp cao nhất!' : `Còn ${NF_UI.formatNumber(lv.pointsToNext)} điểm để lên "${esc(lv.nextName)}"`}
+          </div>
+        </div>
+      </div>
+      <div class="card__label" style="margin-top:var(--sp-4);">ĐIỂM & CHUỖI NGÀY</div>
       <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:var(--sp-2); margin-bottom:var(--sp-3);">
         <div>
           <span class="stat-card__value">${NF_UI.formatNumber(s.points)}</span>

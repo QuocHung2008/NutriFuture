@@ -117,7 +117,7 @@ const NF_App = (() => {
     }
 
     currentRoute = path;
-    updateNavActive(path === '#game' ? '#home' : path);
+    updateNavActive(path);
 
     // Xử lý tham số query (ví dụ: ?date=YYYY-MM-DD)
     let queryParams = {};

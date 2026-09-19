@@ -172,11 +172,11 @@ const NF_PageProfile = (() => {
               <div style="margin-bottom:var(--sp-4);">
                 <label class="card__label" for="prof-activity">MỨC ĐỘ HOẠT ĐỘNG THỂ CHẤT</label>
                 <select id="prof-activity" class="search-bar__input" style="padding-left:var(--sp-3);">
-                  <option value="1.2" ${profile.activity == 1.2 ? 'selected' : ''}>Ít vận động (học sinh ít chơi thể thao, chủ yếu ngồi học)</option>
-                  <option value="1.375" ${(!profile.activity || profile.activity == 1.375) ? 'selected' : ''}>Vận động nhẹ (đi bộ, thể dục 1-3 ngày/tuần)</option>
-                  <option value="1.55" ${profile.activity == 1.55 ? 'selected' : ''}>Vừa phải (tập thể thao, đạp xe 3-5 ngày/tuần)</option>
-                  <option value="1.725" ${profile.activity == 1.725 ? 'selected' : ''}>Năng động (chơi bóng đá, bơi lội 6-7 ngày/tuần)</option>
-                  <option value="1.9" ${profile.activity == 1.9 ? 'selected' : ''}>Cực kỳ năng động (vận động viên học đường, tập luyện nặng)</option>
+                  <option value="1.2" ${profile.activity == 1.2 ? 'selected' : ''}>Ít vận động (chủ yếu ngồi học)</option>
+                  <option value="1.375" ${(!profile.activity || profile.activity == 1.375) ? 'selected' : ''}>Vận động nhẹ (1-3 ngày/tuần)</option>
+                  <option value="1.55" ${profile.activity == 1.55 ? 'selected' : ''}>Vừa phải (3-5 ngày/tuần)</option>
+                  <option value="1.725" ${profile.activity == 1.725 ? 'selected' : ''}>Năng động (6-7 ngày/tuần)</option>
+                  <option value="1.9" ${profile.activity == 1.9 ? 'selected' : ''}>Cực kỳ năng động (VĐV học đường)</option>
                 </select>
               </div>
 

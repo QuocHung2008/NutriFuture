@@ -20,6 +20,38 @@ const NF_GameFactory = (() => {
   const CAPS = { lookup: 5, diary: 4 };
   const HEALTHY_BAND = { min: 0.8, max: 1.1 }; // 80–110% TDEE
 
+  // Cấp độ suy ra thuần túy từ điểm tích lũy (không lưu riêng → luôn nhất quán, không thể lệch trạng thái).
+  // tier quyết định mức độ trang trí/hiệu ứng hiển thị ở giao diện (xem CSS .level-badge[data-tier]).
+  const LEVELS = [
+    { level: 1, minPoints: 0,    name: 'Người mới',       icon: 'fa-seedling',        color: 'green',  tier: 'starter' },
+    { level: 2, minPoints: 60,   name: 'Học viên chăm chỉ', icon: 'fa-leaf',           color: 'sky',    tier: 'starter' },
+    { level: 3, minPoints: 150,  name: 'Người theo dõi',   icon: 'fa-fire',            color: 'amber',  tier: 'rising' },
+    { level: 4, minPoints: 300,  name: 'Chuyên gia nhí',   icon: 'fa-star',            color: 'primary',tier: 'rising' },
+    { level: 5, minPoints: 500,  name: 'Cao thủ dinh dưỡng', icon: 'fa-medal',         color: 'rose',   tier: 'elite' },
+    { level: 6, minPoints: 800,  name: 'Bậc thầy sức khỏe', icon: 'fa-crown',          color: 'purple', tier: 'elite' },
+    { level: 7, minPoints: 1200, name: 'Huyền thoại NutriFuture', icon: 'fa-trophy',   color: 'gold',   tier: 'legend' },
+  ];
+
+  /** Tính thông tin cấp độ hiện tại + tiến độ tới cấp kế tiếp từ tổng điểm (hàm thuần, dễ test). */
+  function getLevelInfo(points) {
+    const p = Math.max(0, Number(points) || 0);
+    let idx = 0;
+    for (let i = 0; i < LEVELS.length; i++) { if (p >= LEVELS[i].minPoints) idx = i; }
+    const cur = LEVELS[idx];
+    const next = LEVELS[idx + 1] || null;
+    const span = next ? next.minPoints - cur.minPoints : 1;
+    const into = next ? p - cur.minPoints : 1;
+    return {
+      ...cur,
+      points: p,
+      nextMinPoints: next ? next.minPoints : null,
+      nextName: next ? next.name : null,
+      pointsToNext: next ? next.minPoints - p : 0,
+      progressPct: next ? Math.max(0, Math.min(100, Math.round((into / span) * 100))) : 100,
+      isMax: !next,
+    };
+  }
+
   const BADGES = {
     rookie: { id: 'rookie', name: 'Người mới', icon: 'fa-seedling', desc: 'Hoàn tất hồ sơ cá nhân' },
     healthy3: { id: 'healthy3', name: 'Ăn uống lành mạnh', icon: 'fa-apple-whole', desc: 'Đủ 3 ngày ăn lành mạnh' },
@@ -368,6 +400,7 @@ const NF_GameFactory = (() => {
       const progress = Math.min(ch.target, weeklyProgress(ch, t));
       return {
         points: st.points,
+        level: getLevelInfo(st.points),
         streak,
         todayLogged,
         badges: st.badges.slice(),
@@ -472,13 +505,13 @@ const NF_GameFactory = (() => {
       award, getSummary, getQuiz, ensureDailyQuiz, startQuiz, practiceSet, answerQuestion,
       // Chỉ để kiểm thử/hiển thị
       _load: load,
-      BADGES, WEEKLY, QUIZ_SIZE, POINTS, CAPS,
+      BADGES, WEEKLY, QUIZ_SIZE, POINTS, CAPS, LEVELS, getLevelInfo,
     };
   }
 
   return {
     create, sanitizeState, sanitizeQuestion, composeQuestions, shuffleOptions, isoWeekKey, weekIndex, weekDays,
-    dateKey, addDays, norm, emptyState, BADGES, WEEKLY, QUIZ_SIZE, RECENT_WINDOW, POINTS, CAPS,
+    dateKey, addDays, norm, emptyState, BADGES, WEEKLY, QUIZ_SIZE, RECENT_WINDOW, POINTS, CAPS, LEVELS, getLevelInfo,
   };
 })();
 
