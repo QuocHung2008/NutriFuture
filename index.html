@@ -38,14 +38,14 @@
   <!-- Chống "chớp" sáng/tối (FOUC): đặt data-theme lên <html> TRƯỚC khi CSS được tải,
        dựa trên lựa chọn đã lưu hoặc theo prefers-color-scheme của hệ thống -->
   <script>
-    (function () {
-      try {
-        var saved = localStorage.getItem('nf_theme');
-        var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-theme', theme);
-      } catch (e) { /* localStorage có thể bị chặn — mặc định theme sáng */ }
-    })();
-  </script>
+	(function () {
+		var theme = 'light';
+		try {
+		theme = localStorage.getItem('nf_theme') || 'light';
+		} catch (e) { /* localStorage có thể bị chặn — giữ theme sáng */ }
+		document.documentElement.setAttribute('data-theme', theme);
+	})();
+</script>
 
   <title>NutriFuture — AI Dinh Dưỡng Học Đường THPT</title>
   <meta name="description" content="NutriFuture — Ứng dụng AI phân tích và tư vấn dinh dưỡng học đường cho học sinh THPT, tích hợp Google Gemini Vision & Text API." />
