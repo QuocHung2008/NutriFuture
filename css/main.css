@@ -433,6 +433,7 @@ h1, h2, h3, h4, h5, h6 {
               box-shadow var(--duration-fast) var(--ease-out);
 }
 .header-date:hover { border-color: var(--primary-400); color: var(--primary-600); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.header-date.active { border-color: var(--primary-500); color: var(--primary-600); background: var(--primary-50); }
 
 /* Trên màn hình hẹp, 3 nút hành động + logo 2 màu (gradient-clip) không đủ chỗ
    → text-overflow:ellipsis cắt ngay giữa vùng gradient trông như chữ bị "vỡ/đè".
@@ -901,30 +902,61 @@ select.search-bar__input {
 .level-badge__bar { height: 0.5rem; margin-bottom: var(--sp-1); }
 .level-badge__next { font-size: var(--fs-xs); color: var(--ink-muted); font-weight: 600; }
 
-/* Cấp 3-4 "rising": viền màu hổ phách + icon ánh sáng ấm hơn */
-.level-badge[data-tier="rising"] { border-color: var(--amber-500); }
-.level-badge[data-tier="rising"] .level-badge__icon { background: linear-gradient(135deg, var(--amber-500), var(--rose-500)); }
+/* Mỗi cấp 1 màu chủ đạo RIÊNG (không dùng chung 1 màu xanh) — càng lên cấp
+   cao, hiệu ứng trang trí càng nhiều: viền màu → viền dày hơn + đổ bóng màu
+   → quầng sáng nhấp nháy → (cấp 7) viền gradient xoay + lấp lánh. */
+.level-badge[data-level="1"] { border-color: var(--green-500); }
+.level-badge[data-level="1"] .level-badge__icon { background: linear-gradient(135deg, var(--green-500), var(--green-600)); box-shadow: 0 6px 16px -4px rgba(34, 192, 127, 0.4); }
+.level-badge[data-level="1"] .level-badge__level { color: var(--green-600); }
 
-/* Cấp 5-6 "elite": viền phát sáng + icon có quầng sáng đập nhẹ */
+.level-badge[data-level="2"] { border-color: var(--sky-500); }
+.level-badge[data-level="2"] .level-badge__icon { background: linear-gradient(135deg, var(--sky-500), var(--sky-600)); box-shadow: 0 6px 16px -4px rgba(41, 194, 245, 0.4); }
+.level-badge[data-level="2"] .level-badge__level { color: var(--sky-600); }
+
+.level-badge[data-level="3"] {
+  border: 2px solid var(--amber-500);
+  box-shadow: 0 6px 20px -8px rgba(245, 165, 36, 0.35);
+}
+.level-badge[data-level="3"] .level-badge__icon { background: linear-gradient(135deg, var(--amber-500), var(--amber-600)); box-shadow: 0 6px 16px -4px rgba(245, 165, 36, 0.45); }
+.level-badge[data-level="3"] .level-badge__level { color: var(--amber-700); }
+
+.level-badge[data-level="4"] {
+  border: 2px solid var(--primary-500);
+  box-shadow: 0 6px 20px -8px rgba(26, 107, 240, 0.35);
+}
+.level-badge[data-level="4"] .level-badge__icon { background: var(--grad-primary); box-shadow: var(--glow-primary-sm); }
+.level-badge[data-level="4"] .level-badge__level { color: var(--primary-600); }
+
+/* Cấp 5-6 "elite": viền phát sáng + icon có quầng sáng đập nhẹ, mỗi cấp 1 tông riêng */
 .level-badge[data-tier="elite"] {
-  border-color: var(--rose-500);
-  box-shadow: 0 0 0 1px var(--rose-500) inset, var(--shadow-md);
+  border: 2px solid var(--rose-500);
+  box-shadow: 0 8px 24px -8px rgba(255, 85, 120, 0.4), var(--shadow-md);
 }
-.level-badge[data-tier="elite"] .level-badge__icon {
-  background: linear-gradient(135deg, var(--rose-500), var(--purple-500));
+.level-badge[data-level="5"] .level-badge__icon {
+  background: linear-gradient(135deg, var(--rose-500), var(--rose-600));
   animation: levelIconPulse 2.4s ease-in-out infinite;
+  --pulse-color: 255, 85, 120;
 }
+.level-badge[data-level="5"] .level-badge__level { color: var(--rose-600); }
+.level-badge[data-level="6"] { border-color: var(--purple-500); box-shadow: 0 8px 24px -8px rgba(155, 123, 255, 0.4), var(--shadow-md); }
+.level-badge[data-level="6"] .level-badge__icon {
+  background: linear-gradient(135deg, var(--purple-500), var(--rose-500));
+  animation: levelIconPulse 2.4s ease-in-out infinite;
+  --pulse-color: 155, 123, 255;
+}
+.level-badge[data-level="6"] .level-badge__level { color: var(--purple-600); }
 
-/* Cấp 7 "legend": viền gradient xoay + nền lấp lánh */
+/* Cấp 7 "legend": viền gradient xoay + nền lấp lánh — nhiều màu nhất, hiệu ứng nhiều nhất */
 .level-badge[data-tier="legend"] {
   border: none;
   background:
     linear-gradient(var(--panel), var(--panel)) padding-box,
-    conic-gradient(from 0deg, var(--primary-500), var(--rose-500), var(--purple-500), var(--amber-500), var(--primary-500)) border-box;
+    conic-gradient(from 0deg, var(--primary-500), var(--rose-500), var(--purple-500), var(--amber-500), var(--green-500), var(--sky-500), var(--primary-500)) border-box;
   border: 2px solid transparent;
   animation: legendBorderSpin 6s linear infinite;
   box-shadow: var(--shadow-lg);
 }
+.level-badge[data-tier="legend"] .level-badge__level { color: var(--amber-600); }
 .level-badge[data-tier="legend"]::after {
   content: '';
   position: absolute; inset: 0;
@@ -932,20 +964,22 @@ select.search-bar__input {
   pointer-events: none;
 }
 .level-badge[data-tier="legend"] .level-badge__icon {
-  background: conic-gradient(from 0deg, var(--primary-500), var(--rose-500), var(--purple-500), var(--amber-500), var(--primary-500));
+  background: conic-gradient(from 0deg, var(--primary-500), var(--rose-500), var(--purple-500), var(--amber-500), var(--green-500), var(--sky-500), var(--primary-500));
   animation: levelIconPulse 1.8s ease-in-out infinite;
+  --pulse-color: 245, 165, 36;
 }
 
 @keyframes levelIconPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 85, 120, 0.5); }
-  50% { box-shadow: 0 0 0 8px rgba(255, 85, 120, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--pulse-color, 26, 107, 240), 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(var(--pulse-color, 26, 107, 240), 0); }
 }
 @keyframes legendBorderSpin {
   0% { filter: hue-rotate(0deg); }
   100% { filter: hue-rotate(360deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .level-badge[data-tier="elite"] .level-badge__icon,
+  .level-badge[data-level="5"] .level-badge__icon,
+  .level-badge[data-level="6"] .level-badge__icon,
   .level-badge[data-tier="legend"],
   .level-badge[data-tier="legend"] .level-badge__icon { animation: none; }
 }
@@ -1401,6 +1435,10 @@ select.search-bar__input {
 }
 
 .bento-card { grid-column: span 6; min-width: 0; }
+/* Phòng vệ: nếu một thẻ chỉ gắn --s2/--s3 mà quên gắn class .bento-card gốc,
+   vẫn không được co về 1 cột ẩn (~1/6 hàng) trên điện thoại — từng gây lỗi
+   ngắt chữ từng ký tự ở trang Hồ sơ. */
+.bento-card--s2, .bento-card--s3 { grid-column: span 3; }
 
 @media (min-width: 480px) {
   .bento-card--s2 { grid-column: span 3; }  /* nửa hàng: dùng cho cặp thẻ */
@@ -1448,6 +1486,12 @@ select.search-bar__input {
   font-size: var(--fs-base);
   flex-shrink: 0;
 }
+/* Biến thể màu cho icon tiêu đề bento-card — tránh cả trang chỉ có 1 màu xanh đơn điệu */
+.bento-card__title--amber i  { background: var(--amber-50);  color: var(--amber-600); }
+.bento-card__title--purple i { background: var(--purple-50); color: var(--purple-600); }
+.bento-card__title--rose i   { background: var(--rose-50);   color: var(--rose-600); }
+.bento-card__title--green i  { background: var(--green-50);  color: var(--green-600); }
+.bento-card__title--sky i    { background: var(--sky-50);    color: var(--sky-600); }
 
 /* --------------------------------------------------------------------------
    15. CAMERA TOÀN MÀN HÌNH — kính mờ, vuốt để thu gọn/ẩn

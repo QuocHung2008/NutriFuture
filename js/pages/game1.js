@@ -27,7 +27,7 @@ const NF_PageGame = (() => {
     const cap = NF_Game.CAPS;
     const lv = s.level;
     el.innerHTML = `
-      <div class="level-badge" data-tier="${lv.tier}" data-level="${lv.level}">
+      <div class="level-badge" data-tier="${lv.tier}">
         <div class="level-badge__icon"><i class="fa-solid ${lv.icon}"></i></div>
         <div class="level-badge__body">
           <div class="level-badge__row">

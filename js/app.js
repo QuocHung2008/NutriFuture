@@ -171,6 +171,11 @@ const NF_App = (() => {
         btn.classList.remove('active');
       }
     });
+
+    // Hồ sơ không còn nằm trong thanh nav dưới (đã chuyển lên icon góc trên phải)
+    // — vẫn cần phản hồi trực quan khi đang ở trang đó.
+    const profileLink = document.querySelector('a[href="#profile"].header-date');
+    if (profileLink) profileLink.classList.toggle('active', path === '#profile');
   }
 
   return {

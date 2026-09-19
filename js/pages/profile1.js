@@ -214,7 +214,7 @@ const NF_PageProfile = (() => {
 
           <!-- Notifications / Reminders Card -->
           <div class="bento-card bento-card--s3">
-            <div class="bento-card__title bento-card__title--amber"><i class="fa-solid fa-bell"></i> Nhắc nhở</div>
+            <div class="bento-card__title"><i class="fa-solid fa-bell"></i> Nhắc nhở</div>
 
             ${!notifSupported ? `
               <p class="text-xs text-muted" style="line-height:1.5;">
@@ -254,7 +254,7 @@ const NF_PageProfile = (() => {
 
           <!-- Gemini Model Config Card -->
           <div class="bento-card bento-card--s3">
-            <div class="bento-card__title bento-card__title--purple"><i class="fa-solid fa-brain"></i> Cấu hình AI Gemini</div>
+            <div class="bento-card__title"><i class="fa-solid fa-brain"></i> Cấu hình AI Gemini</div>
             <p class="text-xs text-muted" style="margin-bottom:var(--sp-3); line-height:1.5;">
               ${hasApiKey
                 ? 'API Key đã được cấu hình sẵn cho ứng dụng — bạn chỉ cần chọn model AI muốn dùng bên dưới.'
@@ -328,28 +328,26 @@ const NF_PageProfile = (() => {
     const bmiInfo = NF_UI.getBMIClass(metrics.bmi);
 
     displayEl.innerHTML = `
-      <div class="metric-grid" style="grid-column: span 6;">
-        <div class="metric-card metric-card--bmi">
-          <div class="metric-card__label">BMI (chuẩn Á)</div>
-          <div class="metric-card__value">${metrics.bmi}</div>
-          <div class="metric-card__extra">
-            <span class="bmi-badge bmi-badge--${bmiInfo.color}">
-              <i class="fa-solid ${bmiInfo.icon}"></i> ${bmiInfo.label}
-            </span>
-          </div>
+      <div class="metric-card metric-card--bmi bento-card--s2">
+        <div class="metric-card__label">BMI (chuẩn Á)</div>
+        <div class="metric-card__value">${metrics.bmi}</div>
+        <div class="metric-card__extra">
+          <span class="bmi-badge bmi-badge--${bmiInfo.color}">
+            <i class="fa-solid ${bmiInfo.icon}"></i> ${bmiInfo.label}
+          </span>
         </div>
+      </div>
 
-        <div class="metric-card metric-card--tdee">
-          <div class="metric-card__label">TDEE</div>
-          <div class="metric-card__value">${metrics.tdee}</div>
-          <div class="metric-card__extra" style="color:var(--amber-700);">kcal / ngày</div>
-        </div>
+      <div class="metric-card metric-card--tdee bento-card--s2">
+        <div class="metric-card__label">TDEE</div>
+        <div class="metric-card__value">${metrics.tdee}</div>
+        <div class="metric-card__extra" style="color:var(--amber-700);">kcal / ngày</div>
+      </div>
 
-        <div class="metric-card metric-card--water">
-          <div class="metric-card__label">Nhu cầu Nước</div>
-          <div class="metric-card__value">${(metrics.waterMl / 1000).toFixed(1)}</div>
-          <div class="metric-card__extra" style="color:var(--sky-700);">Lít / ngày</div>
-        </div>
+      <div class="metric-card metric-card--water bento-card--s2">
+        <div class="metric-card__label">Nhu cầu Nước</div>
+        <div class="metric-card__value">${(metrics.waterMl / 1000).toFixed(1)}</div>
+        <div class="metric-card__extra" style="color:var(--sky-700);">Lít / ngày</div>
       </div>
 
       <!-- Macro split recommendations -->
