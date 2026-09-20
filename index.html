@@ -27,11 +27,13 @@
 
   <script>
     (function () {
-      var theme = 'light';
+      var theme = 'light', realm = '';
       try {
         theme = localStorage.getItem('nf_theme') || 'light';
+        realm = localStorage.getItem('nf_realm') || '';   // giao diện theo cấp (js/game-enhancements.js) — áp dụng ngay để không bị chớp
       } catch (e) {}
       document.documentElement.setAttribute('data-theme', theme);
+      if (/^[a-z]+$/.test(realm)) document.documentElement.setAttribute('data-nf-realm', realm);
     })();
   </script>
 
@@ -52,7 +54,7 @@
 
   <!-- Base design system -->
   <link rel="stylesheet" href="css/main.css" />
-  <!-- Visual-only level FX; loaded after main.css so it can enhance without changing structure -->
+  <!-- FX: 9 giao diện theo cấp + hiệu ứng lấp lánh/chuyển động. Nạp SAU main.css, chỉ đổi màu/hiệu ứng, không đổi bố cục -->
   <link rel="stylesheet" href="css/level-fx-add.css" />
 </head>
 <body>
@@ -128,6 +130,7 @@
   <!-- Must stay after game-engine.js and before page modules -->
   <script src="js/game-enhancements.js"></script>
   <script src="js/motion.js"></script>
+  <script src="js/fx.js"></script>
 
   <script src="js/pages/home.js"></script>
   <script src="js/pages/camera.js"></script>

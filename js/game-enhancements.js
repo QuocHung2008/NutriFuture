@@ -2,6 +2,10 @@
  * Loaded after js/game-engine.js and before page modules.
  * No existing game data schema is changed. Existing levels 1–7 remain intact;
  * higher levels are derived from the same accumulated points without a hard cap.
+ *
+ * GIAO DIỆN (looks): 9 giao diện, mở khóa gần như mỗi cấp một cái (cấp 1 → 9).
+ * Mặc định giao diện tự đổi theo cấp; người chơi cũng có thể chọn thủ công một giao diện ĐÃ mở khóa
+ * (lưu ở localStorage 'nf_look'), hoặc "xem thử" giao diện chưa mở trong vài giây.
  */
 (() => {
   'use strict';
@@ -12,13 +16,26 @@
   const RAW_GET_SUMMARY = NF_Game.getSummary.bind(NF_Game);
   const BASE_LEVEL_MAX_POINTS = 1200;
   const EXTENSION_CAP = 1000000;
-  const REALMS = ['celestial', 'nebula', 'cosmic', 'royal', 'divine', 'eternal', 'transcendent'];
+  const LOOK_KEY = 'nf_look';          // 'auto' | id giao diện đã mở khóa
+  const REALM_CACHE_KEY = 'nf_realm';  // giao diện đang dùng — để index.html áp dụng ngay khi tải (không bị chớp)
+  const PREVIEW_MS = 5000;
+
+  // minLevel: cấp cần đạt để mở khóa (đã rút ngắn: 9 giao diện trong 9 cấp đầu, trước đây cần tới cấp 25)
+  const LOOKS = [
+    { id: 'fresh',        name: 'Khởi Đầu Xanh', minLevel: 1, swatch: ['#054fd4', '#1a96ff', '#60d7ff'], dark: false },
+    { id: 'radiant',      name: 'Rạng Đông',     minLevel: 2, swatch: ['#0757dc', '#6d4cff', '#ff5fb3'], dark: false },
+    { id: 'celestial',    name: 'Thiên Lam',     minLevel: 3, swatch: ['#0a55dd', '#1fa8ff', '#4df0ff'], dark: false },
+    { id: 'nebula',       name: 'Tinh Vân',      minLevel: 4, swatch: ['#304be8', '#8a45f5', '#ef58ba'], dark: false },
+    { id: 'cosmic',       name: 'Vũ Trụ',        minLevel: 5, swatch: ['#183bc9', '#604dff', '#18cfff'], dark: false },
+    { id: 'royal',        name: 'Hoàng Kim',     minLevel: 6, swatch: ['#3f2fd0', '#8a4ff0', '#e58f0a'], dark: false },
+    { id: 'divine',       name: 'Thần Quang',    minLevel: 7, swatch: ['#5d34e6', '#a95cff', '#ffcf55'], dark: true },
+    { id: 'eternal',      name: 'Vĩnh Hằng',     minLevel: 8, swatch: ['#0b7cf0', '#7a5cff', '#ff5fd0'], dark: true },
+    { id: 'transcendent', name: 'Siêu Việt',     minLevel: 9, swatch: ['#22d3ee', '#a05cff', '#ff6bb5'], dark: true },
+  ];
+  const LOOK_BY_ID = LOOKS.reduce((m, l) => { m[l.id] = l; return m; }, {});
+  // Biểu tượng chỉ dùng cho các cấp mở rộng (từ cấp 8); cấp 1–7 dùng biểu tượng gốc trong game-engine.js.
+  // (Chỉ dùng biểu tượng có trong Font Awesome Free — biểu tượng "sparkles" là bản Pro nên sẽ hiện ô trống.)
   const ICONS = {
-    celestial: 'fa-sparkles',
-    nebula: 'fa-meteor',
-    cosmic: 'fa-atom',
-    royal: 'fa-crown',
-    divine: 'fa-gem',
     eternal: 'fa-infinity',
     transcendent: 'fa-wand-magic-sparkles',
   };
@@ -71,25 +88,25 @@
     return `${cycle} ${cycleNo}`;
   }
 
-  function realmForLevel(level) {
-    if (level <= 7) return level >= 7 ? 'royal' : (level >= 5 ? 'radiant' : 'fresh');
-    if (level <= 9) return 'celestial';
-    if (level <= 11) return 'nebula';
-    if (level <= 14) return 'cosmic';
-    if (level <= 17) return 'royal';
-    if (level <= 20) return 'divine';
-    if (level <= 24) return 'eternal';
-    return 'transcendent';
+  function lookIndexForLevel(level) {
+    let idx = 0;
+    for (let i = 0; i < LOOKS.length; i++) { if (level >= LOOKS[i].minLevel) idx = i; }
+    return idx;
   }
 
+  function realmForLevel(level) {
+    return LOOKS[lookIndexForLevel(level)].id;
+  }
+
+  /** "Power" 1–9 = thứ tự của giao diện: quyết định số sao lấp lánh, aurora, sao băng (js/fx.js + CSS). */
   function powerForLevel(level) {
-    return Math.max(1, Math.min(8, 1 + Math.floor((level - 1) / 3)));
+    return lookIndexForLevel(level) + 1;
   }
 
   function extendedLevelInfo(points) {
     const p = Math.max(0, Math.min(EXTENSION_CAP, Number(points) || 0));
     const base = RAW_GET_SUMMARY().level;
-    if (p <= BASE_LEVEL_MAX_POINTS) return { ...base, realm: realmForLevel(base.level), power: powerForLevel(base.level) };
+    if (p < BASE_LEVEL_MAX_POINTS) return { ...base, realm: realmForLevel(base.level), power: powerForLevel(base.level) };
 
     let level = 7;
     let min = BASE_LEVEL_MAX_POINTS;
@@ -98,15 +115,18 @@
     const nextMin = minPointsForLevel(level + 1);
     const span = Math.max(1, nextMin - min);
     const into = Math.max(0, p - min);
-    const realm = REALMS.includes(realmForLevel(level)) ? realmForLevel(level) : 'transcendent';
+    const realm = realmForLevel(level);
+    // Cấp 7 (1200–1419 điểm) vẫn là cấp gốc "Huyền thoại NutriFuture": giữ tên/biểu tượng gốc
+    // (trước đây rơi vào nhánh mở rộng nên hiện tên sai "Tinh Hải Vô Tận -3").
+    const isBase = level <= 7;
     return {
       ...base,
       level,
       minPoints: min,
-      name: titleForLevel(level),
-      icon: ICONS[realm] || 'fa-star',
-      color: realm === 'royal' ? 'gold' : 'primary',
-      tier: realm,
+      name: isBase ? base.name : titleForLevel(level),
+      icon: isBase ? base.icon : (ICONS[realm] || 'fa-star'),
+      color: isBase ? base.color : 'primary',
+      tier: isBase ? base.tier : realm,
       realm,
       power: powerForLevel(level),
       points: p,
@@ -120,7 +140,7 @@
 
   function levelFromPoints(points) {
     const p = Number(points) || 0;
-    if (p <= BASE_LEVEL_MAX_POINTS) return RAW_GET_SUMMARY().level.level;
+    if (p < BASE_LEVEL_MAX_POINTS) return RAW_GET_SUMMARY().level.level;
     let level = 7;
     while (level < 9999 && p >= minPointsForLevel(level + 1)) level++;
     return level;
@@ -132,24 +152,101 @@
     lastLevel = levelFromPoints(current.points);
   } catch (_) {}
 
+  /* ─── Chọn giao diện (looks) ─── */
+
+  let previewId = null;
+  let previewTimer = null;
+  let firstDecorate = true;
+
+  function readChoice() {
+    try {
+      const v = localStorage.getItem(LOOK_KEY);
+      return v && LOOK_BY_ID[v] ? v : 'auto';
+    } catch (_) { return 'auto'; }
+  }
+
+  function currentLevel() {
+    try { return NF_Game.getSummary().level.level; } catch (_) { return 1; }
+  }
+
+  /** Giao diện thực sự được áp dụng: xem thử > lựa chọn thủ công (đã mở khóa) > theo cấp. */
+  function effectiveRealm(level, ignorePreview) {
+    if (!ignorePreview && previewId && LOOK_BY_ID[previewId]) return previewId;
+    const choice = readChoice();
+    if (choice !== 'auto' && level >= LOOK_BY_ID[choice].minLevel) return choice;
+    return realmForLevel(level);
+  }
+
+  function looks() {
+    const level = currentLevel();
+    const choice = readChoice();
+    const active = effectiveRealm(level, true);
+    return LOOKS.map((l, i) => ({
+      id: l.id, name: l.name, minLevel: l.minLevel, swatch: l.swatch, dark: l.dark, power: i + 1,
+      unlocked: level >= l.minLevel,
+      active: l.id === active,
+      auto: choice === 'auto',
+    }));
+  }
+
+  function getLookChoice() { return readChoice(); }
+
+  /** id = 'auto' (theo cấp) hoặc id giao diện đã mở khóa. Trả về true nếu áp dụng được. */
+  function setLook(id) {
+    const level = currentLevel();
+    if (id !== 'auto' && (!LOOK_BY_ID[id] || level < LOOK_BY_ID[id].minLevel)) return false;
+    try { localStorage.setItem(LOOK_KEY, id); } catch (_) { /* chế độ riêng tư: chỉ áp dụng trong phiên */ }
+    previewId = null;
+    decorateRoot();
+    return true;
+  }
+
+  /** Xem thử một giao diện CHƯA mở khóa trong vài giây (không lưu). */
+  function previewLook(id) {
+    if (!LOOK_BY_ID[id]) return false;
+    previewId = id;
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => { previewId = null; decorateRoot(); }, PREVIEW_MS);
+    decorateRoot();
+    return true;
+  }
+
   function decorateRoot() {
     let summary;
     try { summary = NF_Game.getSummary(); } catch (_) { return; }
     if (!summary || !summary.level) return;
     const level = summary.level.level;
-    const realm = summary.level.realm || realmForLevel(level);
-    const power = summary.level.power || powerForLevel(level);
-    document.documentElement.dataset.nfLevel = String(level);
-    document.documentElement.dataset.nfRealm = realm;
-    document.documentElement.dataset.nfPower = String(power);
+    const realm = effectiveRealm(level);
+    const power = LOOKS.findIndex((l) => l.id === realm) + 1;
+    const root = document.documentElement;
+    const changed = root.dataset.nfRealm !== realm;
+
+    root.dataset.nfLevel = String(level);
+    root.dataset.nfRealm = realm;
+    root.dataset.nfPower = String(power);
+
+    if (changed) {
+      if (!previewId) { try { localStorage.setItem(REALM_CACHE_KEY, realm); } catch (_) { /* bỏ qua */ } }
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', LOOK_BY_ID[realm].dark ? '#0d1020' : LOOK_BY_ID[realm].swatch[0]);
+      // Lần vẽ đầu tiên khi tải trang: không chớp. Từ lần sau (đổi giao diện) mới có hiệu ứng.
+      if (!firstDecorate && typeof NF_Fx !== 'undefined' && NF_Fx && NF_Fx.lookChanged) NF_Fx.lookChanged();
+    }
+    firstDecorate = false;
 
     document.querySelectorAll('.level-badge').forEach((badge) => {
+      const stamp = `${level}|${realm}`;
       badge.dataset.nfRealm = realm;
       badge.dataset.nfPower = String(power);
       badge.dataset.level = String(level);
-      badge.classList.remove('nf-level-live');
-      void badge.offsetWidth;
-      badge.classList.add('nf-level-live');
+      // Chỉ phát hiệu ứng "bật" khi huy hiệu mới xuất hiện hoặc cấp/giao diện đổi
+      // (trước đây phát lại mỗi lần DOM đổi, ví dụ mỗi lần trả lời một câu đố).
+      if (badge.dataset.nfStamp !== stamp) {
+        badge.dataset.nfStamp = stamp;
+        badge.classList.remove('nf-level-live');
+        void badge.offsetWidth;
+        badge.classList.add('nf-level-live');
+      }
     });
   }
 
@@ -173,11 +270,12 @@
       <canvas class="nf-level-celebration__canvas" aria-hidden="true"></canvas>
       <div class="nf-level-celebration__aurora" aria-hidden="true"></div>
       <div class="nf-level-celebration__content">
-        <div class="nf-level-celebration__eyebrow"><i class="fa-solid fa-sparkles"></i> THĂNG CẤP</div>
+        <div class="nf-level-celebration__eyebrow"><i class="fa-solid fa-wand-magic-sparkles"></i> THĂNG CẤP</div>
         <div class="nf-level-celebration__ring"><div class="nf-level-celebration__icon"><i class="fa-solid fa-star"></i></div></div>
         <div class="nf-level-celebration__level"></div>
         <div class="nf-level-celebration__title"></div>
         <div class="nf-level-celebration__desc"></div>
+        <div class="nf-level-celebration__unlock" hidden></div>
         <div class="nf-level-celebration__xp"></div>
       </div>`;
     root.addEventListener('click', () => hideCelebration());
@@ -260,12 +358,23 @@
     const titleEl = root.querySelector('.nf-level-celebration__title');
     const descEl = root.querySelector('.nf-level-celebration__desc');
     const xpEl = root.querySelector('.nf-level-celebration__xp');
+    const unlockEl = root.querySelector('.nf-level-celebration__unlock');
     const stepCount = Math.max(1, toLevel - fromLevel);
     const realm = summary.level.realm || realmForLevel(toLevel);
     const power = summary.level.power || powerForLevel(toLevel);
     root.dataset.nfRealm = realm;
     root.dataset.nfPower = String(power);
-    icon.className = `fa-solid ${ICONS[realm] || 'fa-star'}`;
+    icon.className = `fa-solid ${summary.level.icon || ICONS[realm] || 'fa-star'}`;
+    // Giao diện mới mở khóa ở lần lên cấp này (nếu có)
+    const unlocked = LOOKS.filter((l) => l.minLevel > fromLevel && l.minLevel <= toLevel);
+    if (unlockEl) {
+      if (unlocked.length) {
+        unlockEl.textContent = `🎨 Mở khóa giao diện «${unlocked[unlocked.length - 1].name}»`;
+        unlockEl.hidden = false;
+      } else {
+        unlockEl.hidden = true;
+      }
+    }
     levelEl.textContent = stepCount > 1 ? `Cấp ${fromLevel}  →  Cấp ${toLevel}` : `Cấp ${toLevel}`;
     titleEl.textContent = summary.level.name;
     descEl.textContent = stepCount > 1 ? `Bạn vừa vượt ${stepCount} cảnh giới trong một lần.` : 'Mỗi điểm nhỏ hôm nay đã biến thành một cột mốc mới.';
@@ -298,6 +407,13 @@
     showCelebration,
     minPointsForLevel,
     levelFromPoints,
+    // Giao diện
+    LOOKS,
+    looks,
+    getLookChoice,
+    setLook,
+    previewLook,
+    realmForLevel,
   };
 
   window.addEventListener('nf:game-award', () => {

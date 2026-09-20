@@ -147,6 +147,10 @@ const NF_App = (() => {
     if (typeof NF_Motion !== 'undefined') {
       NF_Motion.animatePage(contentContainer);
     }
+    // Hiệu ứng đếm số khi vào trang (js/fx.js) — chỉ trang trí, tự bỏ qua nếu bật "Reduce motion"
+    if (typeof NF_Fx !== 'undefined') {
+      NF_Fx.enhancePage(contentContainer);
+    }
   }
 
   function setupNav() {

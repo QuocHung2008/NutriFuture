@@ -185,6 +185,12 @@ const NF_PageHistory = (() => {
     if (typeof Chart === 'undefined') return;
 
     const ctx = canvas.getContext('2d');
+    // Màu lấy từ giao diện hiện tại (Sáng/Tối/giao diện theo cấp) để lưới, số trục và cột luôn đọc được
+    const css = getComputedStyle(document.documentElement);
+    const tone = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
+    const gridColor = tone('--line-strong', '#d5d9e4');
+    const tickColor = tone('--ink-muted', '#667085');
+    const barColor = tone('--primary-500', '#054fd4');
     const labels = days.map(d => d.label);
     const dataCal = days.map(d => d.calories);
     const targetLine = days.map(() => tdee);
@@ -209,7 +215,7 @@ const NF_PageHistory = (() => {
             type: 'bar',
             label: 'Calo tiêu thụ',
             data: dataCal,
-            backgroundColor: dataCal.map(c => c > tdee ? '#f5a524' : '#054fd4'),
+            backgroundColor: dataCal.map(c => c > tdee ? '#f5a524' : barColor),
             borderRadius: 6,
             order: 2
           }
@@ -221,12 +227,12 @@ const NF_PageHistory = (() => {
         scales: {
           y: {
             beginAtZero: true,
-            grid: { color: '#e3e3e3' },
-            ticks: { font: { size: 10, family: 'Inter' } }
+            grid: { color: gridColor },
+            ticks: { color: tickColor, font: { size: 10, family: 'Inter' } }
           },
           x: {
             grid: { display: false },
-            ticks: { font: { size: 10, family: 'Inter' } }
+            ticks: { color: tickColor, font: { size: 10, family: 'Inter' } }
           }
         },
         plugins: {

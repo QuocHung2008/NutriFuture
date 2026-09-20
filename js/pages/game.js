@@ -1,6 +1,6 @@
 /**
  * NutriFuture — Game Page (Học mà chơi)
- * 4 khối: Điểm & chuỗi ngày · Câu đố hôm nay · Thử thách tuần · Huy hiệu.
+ * 5 khối: Điểm & chuỗi ngày · Giao diện (mở khóa theo cấp) · Câu đố hôm nay · Thử thách tuần · Huy hiệu.
  * Toàn bộ logic nằm ở NF_Game (js/game-engine.js); trang này chỉ hiển thị.
  * Mọi văn bản câu hỏi/đáp án (kể cả do AI sinh) đều được escape trước khi chèn vào HTML.
  */
@@ -60,6 +60,73 @@ const NF_PageGame = (() => {
         Ngày ăn lành mạnh: ${s.daily.healthyAwarded ? 'đã tính ✓' : 'chưa'}
       </div>
     `;
+  }
+
+  /* ─── Khối: Giao diện — 9 giao diện mở khóa theo cấp (logic ở js/game-enhancements.js) ─── */
+
+  function lookTileHtml(l) {
+    const grad = `linear-gradient(120deg, ${l.swatch[0]}, ${l.swatch[1]}, ${l.swatch[2]})`;
+    const cls = ['look-tile', l.active ? 'look-tile--active' : '', l.unlocked ? '' : 'look-tile--locked'].filter(Boolean).join(' ');
+    const meta = l.active
+      ? '<i class="fa-solid fa-circle-check"></i> Đang dùng'
+      : (l.unlocked
+        ? `<i class="fa-solid fa-palette"></i> Cấp ${l.minLevel} • Dùng`
+        : `<i class="fa-solid fa-lock"></i> Cấp ${l.minLevel} • Xem thử`);
+    return `
+      <button type="button" class="${cls}" data-look="${esc(l.id)}" aria-pressed="${l.active ? 'true' : 'false'}">
+        ${l.active ? '<span class="look-tile__check"><i class="fa-solid fa-check"></i></span>' : ''}
+        <span class="look-tile__swatch" style="background:${grad};"></span>
+        <span class="look-tile__name">${esc(l.name)}</span>
+        <span class="look-tile__meta">${meta}</span>
+      </button>`;
+  }
+
+  function renderLooks() {
+    const el = root && root.querySelector('#game-looks');
+    if (!el) return;
+    const fx = window.__NF_LEVEL_FX__;
+    if (!fx || typeof fx.looks !== 'function') { el.style.display = 'none'; return; }
+
+    const list = fx.looks();
+    const auto = fx.getLookChoice() === 'auto';
+    const unlockedCount = list.filter((l) => l.unlocked).length;
+    const next = list.find((l) => !l.unlocked);
+
+    el.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:var(--sp-2); flex-wrap:wrap; margin-bottom:var(--sp-3);">
+        <div class="card__label" style="margin-bottom:0;">GIAO DIỆN (${unlockedCount}/${list.length})</div>
+        <button type="button" class="btn btn--sm ${auto ? 'btn--primary' : 'btn--outline'}" id="btn-look-auto" aria-pressed="${auto ? 'true' : 'false'}">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Tự động theo cấp
+        </button>
+      </div>
+      <div class="look-grid">${list.map(lookTileHtml).join('')}</div>
+      <p class="look-note">
+        ${next
+          ? `Đạt <strong>Cấp ${next.minLevel}</strong> để mở khóa giao diện «${esc(next.name)}». Bấm vào giao diện đang khóa để xem thử 5 giây.`
+          : 'Bạn đã mở khóa tất cả giao diện!'}
+      </p>`;
+
+    const autoBtn = el.querySelector('#btn-look-auto');
+    if (autoBtn) {
+      autoBtn.onclick = () => {
+        fx.setLook('auto');
+        NF_UI.showToast('Giao diện sẽ tự đổi theo cấp của bạn', 'success');
+        renderLooks();
+      };
+    }
+    el.querySelectorAll('.look-tile').forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.dataset.look;
+        const look = list.find((l) => l.id === id);
+        if (!look) return;
+        if (look.unlocked) {
+          if (fx.setLook(id)) NF_UI.showToast(`Đã đổi giao diện «${look.name}»`, 'success');
+        } else if (fx.previewLook(id)) {
+          NF_UI.showToast(`Đang xem thử «${look.name}» — đạt Cấp ${look.minLevel} để mở khóa`, 'info');
+        }
+        renderLooks();
+      };
+    });
   }
 
   /* ─── Khối 3: Thử thách tuần ─── */
@@ -306,6 +373,8 @@ const NF_PageGame = (() => {
         <div class="page__body">
           <div class="card card--glass" id="game-stats"></div>
 
+          <div class="card" id="game-looks"></div>
+
           <div class="grid-2-desktop">
             <div class="card" id="game-quiz"></div>
             <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
@@ -318,6 +387,7 @@ const NF_PageGame = (() => {
     `;
 
     renderStats();
+    renderLooks();
     renderWeekly();
     renderBadges();
     loadQuiz();
@@ -326,7 +396,7 @@ const NF_PageGame = (() => {
     if (awardHandler) window.removeEventListener('nf:game-award', awardHandler);
     awardHandler = () => {
       if (!root || !root.isConnected || !root.querySelector('#game-stats')) return;
-      renderStats(); renderWeekly(); renderBadges();
+      renderStats(); renderLooks(); renderWeekly(); renderBadges();
     };
     window.addEventListener('nf:game-award', awardHandler);
   }

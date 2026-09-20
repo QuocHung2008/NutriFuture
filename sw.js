@@ -5,7 +5,7 @@
  *
  * Tăng CACHE_VERSION mỗi khi đổi cấu trúc file tĩnh để buộc trình duyệt tải bản mới.
  */
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `nutrifuture-cache-${CACHE_VERSION}`;
 
 // Chỉ liệt kê file same-origin ở đây — addAll sẽ lỗi toàn bộ nếu 1 URL cross-origin
@@ -16,6 +16,7 @@ const CORE_ASSETS = [
   './index.html',
   './manifest.json',
   './css/main.css',
+  './css/level-fx-add.css',
   './js/app.js',
   './js/storage.js',
   './js/data/foods.js',
@@ -25,7 +26,9 @@ const CORE_ASSETS = [
   './js/ui.js',
   './js/notifications.js',
   './js/game-engine.js',
+  './js/game-enhancements.js',
   './js/motion.js',
+  './js/fx.js',
   './js/config.js',
   './js/pages/home.js',
   './js/pages/camera.js',
@@ -77,6 +80,29 @@ self.addEventListener('fetch', (event) => {
   // Chỉ xử lý GET — bỏ qua POST/PUT (không áp dụng ở app này nhưng để an toàn)
   if (req.method !== 'GET') return;
 
+  const sameOrigin = url.origin === self.location.origin;
+
+  if (sameOrigin) {
+    // File của chính app: MẠNG TRƯỚC (luôn lấy bản mới nhất sau mỗi lần deploy), mất mạng mới dùng cache.
+    // (Bản cũ trả cache trước nên người dùng hay thấy giao diện/JS cũ đến lần tải thứ hai — dễ nhầm là "lỗi hiển thị".)
+    // "no-cache" = luôn hỏi lại máy chủ (304 nếu không đổi), không dùng bản trong bộ nhớ đệm HTTP của GitHub Pages.
+    const netReq = req.mode === 'navigate' ? req : new Request(req, { cache: 'no-cache' });
+    event.respondWith(
+      fetch(netReq)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Tài nguyên CDN (Google Fonts, Chart.js, Font Awesome — đã gắn phiên bản cố định):
+  // trả cache ngay nếu có, đồng thời âm thầm cập nhật cho lần sau.
   event.respondWith(
     caches.match(req).then((cached) => {
       const networkFetch = fetch(req)
@@ -88,10 +114,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => cached); // Mất mạng → dùng bản đã cache (nếu có)
-
-      // Stale-while-revalidate: trả cache ngay lập tức nếu có (nhanh + hoạt động offline),
-      // đồng thời âm thầm cập nhật cache cho lần tải sau.
+        .catch(() => cached);
       return cached || networkFetch;
     })
   );

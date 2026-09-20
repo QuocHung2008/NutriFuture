@@ -6,6 +6,11 @@
  * Các thao tác đổi ngày / thêm / xóa món chỉ gọi refresh() để cập nhật đúng phần
  * dữ liệu thay đổi (text, chart.update()) — không innerHTML lại toàn bộ trang và
  * không destroy/recreate Chart.js mỗi lần, tránh giật trên máy yếu.
+ *
+ * LƯU Ý (lỗi "biểu đồ tròn biến mất khi quay lại tab Nhật ký"):
+ * mỗi lần vào trang, render() thay toàn bộ innerHTML → <canvas> cũ bị bỏ đi và canvas mới trống.
+ * Biểu đồ giữ từ lần trước vẫn trỏ vào canvas cũ nên chart.update() vẽ vào chỗ không còn hiển thị.
+ * Vì vậy: hủy biểu đồ khi dựng lại khung trang, và luôn kiểm tra biểu đồ có đang gắn ĐÚNG canvas hiện tại không.
  */
 const NF_PageDiary = (() => {
   'use strict';
@@ -49,6 +54,8 @@ const NF_PageDiary = (() => {
   /* ─── Khung trang: chỉ dựng 1 lần khi vào trang / đổi trang ─── */
 
   function render(container, date = null) {
+    // Canvas cũ sắp bị thay → hủy biểu đồ cũ (nếu không sẽ update nhầm vào canvas đã bị gỡ khỏi trang)
+    destroyMacroChart();
     currentContainer = container;
     selectedDate = date || selectedDate || NF_Storage.getToday();
 
@@ -279,11 +286,62 @@ const NF_PageDiary = (() => {
     });
   }
 
-  /* ─── Chart.js: tạo 1 lần, các lần sau chỉ update data (không destroy/recreate) ─── */
+  /* ─── Chart.js: tạo 1 lần cho mỗi canvas, các lần sau chỉ update data ─── */
+
+  const MACRO_COLORS = ['#1a6bf0', '#12b76a', '#f5a524'];   // Carb · Protein · Fat (khớp viền legend)
+  const MACRO_EMPTY = ['#dfe6f5', '#dfe6f5', '#dfe6f5'];
+
+  function cssVar(name, fallback) {
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    } catch (e) { return fallback; }
+  }
+
+  /** Plugin nhỏ: quầng sáng quanh các cung + số gam ở giữa (màu chữ lấy từ giao diện hiện tại). */
+  const macroDecor = {
+    id: 'nfMacroDecor',
+    beforeDatasetsDraw(chart, args, opts) {
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.shadowColor = opts && opts.hasData ? 'rgba(26, 107, 240, 0.38)' : 'transparent';
+      ctx.shadowBlur = 14;
+    },
+    afterDatasetsDraw(chart) {
+      chart.ctx.restore();
+    },
+    afterDraw(chart, args, opts) {
+      const meta = chart.getDatasetMeta(0);
+      const arc = meta && meta.data && meta.data[0];
+      if (!arc) return;
+      const ctx = chart.ctx;
+      const total = (opts && opts.total) || 0;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = cssVar('--ink', '#111');
+      ctx.font = '800 22px Sora, "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.fillText(opts && opts.hasData ? `${total}g` : '—', arc.x, arc.y - 7);
+      ctx.fillStyle = cssVar('--ink-muted', '#667085');
+      ctx.font = '700 11px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.fillText('dinh dưỡng', arc.x, arc.y + 14);
+      ctx.restore();
+    },
+  };
+
+  function destroyMacroChart() {
+    if (macroChartInstance) {
+      try { macroChartInstance.destroy(); } catch (e) { /* canvas có thể đã bị gỡ — bỏ qua */ }
+      macroChartInstance = null;
+    }
+  }
 
   function updateMacroChart(summary) {
     const canvas = document.getElementById('diary-macro-chart');
     if (!canvas || typeof Chart === 'undefined') return;
+
+    // Biểu đồ đang giữ là của canvas cũ (trang đã dựng lại) → bỏ, tạo lại trên canvas mới
+    if (macroChartInstance && macroChartInstance.canvas !== canvas) destroyMacroChart();
 
     const c = summary.totalCarb || 0;
     const p = summary.totalProtein || 0;
@@ -291,12 +349,12 @@ const NF_PageDiary = (() => {
     const hasData = (c + p + f) > 0;
 
     const dataValues = hasData ? [c, p, f] : [1, 1, 1];
-    const dataColors = hasData
-      ? ['#054fd4', '#12b76a', '#f5a524']
-      : ['#e3e3e3', '#e3e3e3', '#e3e3e3'];
+    const dataColors = hasData ? MACRO_COLORS : MACRO_EMPTY;
+    const totalGrams = Math.round((c + p + f) * 10) / 10;
 
     if (macroChartInstance) {
       // Chỉ cập nhật dữ liệu + màu, không destroy/recreate → mượt hơn, đỡ tốn CPU/GPU
+      macroChartInstance.options.plugins.nfMacroDecor = { hasData, total: totalGrams };
       macroChartInstance.data.datasets[0].data = dataValues;
       macroChartInstance.data.datasets[0].backgroundColor = dataColors;
       macroChartInstance.options.plugins.tooltip.enabled = hasData;
@@ -312,17 +370,21 @@ const NF_PageDiary = (() => {
         datasets: [{
           data: dataValues,
           backgroundColor: dataColors,
-          borderWidth: 2,
-          borderColor: '#ffffff',
-          hoverOffset: 4
+          borderWidth: 0,
+          spacing: 3,
+          borderRadius: 8,
+          hoverOffset: 8
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '72%',
+        cutout: '70%',
+        layout: { padding: 8 },
+        animation: { duration: 900, easing: 'easeOutQuart' },
         plugins: {
           legend: { display: false },
+          nfMacroDecor: { hasData, total: totalGrams },
           tooltip: {
             enabled: hasData,
             callbacks: {
@@ -330,7 +392,8 @@ const NF_PageDiary = (() => {
             }
           }
         }
-      }
+      },
+      plugins: [macroDecor]
     });
   }
 
