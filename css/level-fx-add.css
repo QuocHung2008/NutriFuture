@@ -1,0 +1,120 @@
+/* NutriFuture Level FX — visual-only enhancement. No layout dimensions are changed. */
+:root {
+  --nf-card-glow: rgba(26,107,240,.16);
+  --nf-glow-blue: rgba(26,150,255,.44);
+  --nf-glow-violet: rgba(124,77,255,.34);
+  --nf-glow-gold: rgba(255,198,75,.44);
+  --nf-glow-pink: rgba(255,88,177,.30);
+}
+
+html, body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* Brighter, clearer existing gradients — same sizes/geometry. */
+.btn--primary,
+.search-bar__btn,
+.logo__icon,
+.nav-btn--camera .nav-btn__icon-wrap,
+.shutter-btn::before {
+  background-image: linear-gradient(135deg,#054fd4 0%,#1a96ff 52%,#60d7ff 100%);
+  box-shadow: 0 10px 28px -9px rgba(26,107,240,.58), 0 0 24px -7px rgba(63,197,255,.62);
+}
+
+.btn--primary,
+.search-bar__btn,
+.logo__icon,
+.nav-btn--camera .nav-btn__icon-wrap { position: relative; isolation: isolate; }
+
+.btn--primary::after,
+.search-bar__btn::after,
+.logo__icon::after,
+.nav-btn--camera .nav-btn__icon-wrap::after {
+  content:''; position:absolute; inset:1px; border-radius:inherit; pointer-events:none; z-index:0;
+  background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.44) 42%,transparent 61%);
+  transform:translateX(-125%); animation:nfShine 4.8s ease-in-out infinite;
+}
+.btn--primary > *, .search-bar__btn > *, .logo__icon > *, .nav-btn--camera .nav-btn__icon-wrap > * { position:relative; z-index:1; }
+@keyframes nfShine { 0%,55%,100%{transform:translateX(-125%);opacity:0} 61%{opacity:.58} 72%{transform:translateX(125%);opacity:.12} }
+
+.card--glass,
+.card,
+.bento-card,
+.quick-card,
+.metric-card,
+.result-card,
+.diary-entry,
+.lookup-history__item {
+  box-shadow: 0 12px 34px -18px rgba(5,40,120,.30), 0 0 0 1px rgba(255,255,255,.30) inset;
+}
+.card--glass { box-shadow:0 22px 52px -20px rgba(5,40,120,.34),0 0 34px -18px var(--nf-card-glow),0 0 0 1px rgba(255,255,255,.42) inset; }
+.progress-bar__fill { background-image:linear-gradient(90deg,#054fd4 0%,#1a96ff 50%,#7fe5ff 100%); box-shadow:0 0 16px rgba(26,150,255,.74),0 0 32px rgba(63,197,255,.28); }
+.stat-card__value { text-shadow:0 0 24px rgba(26,150,255,.18); }
+
+/* Global realm palette; only color/effects change as level rises. */
+html[data-nf-realm="fresh"] { --grad-primary:linear-gradient(135deg,#054fd4 0%,#1a96ff 100%); --grad-primary-vivid:linear-gradient(135deg,#0742c0 0%,#1a96ff 55%,#3fc5ff 100%); }
+html[data-nf-realm="radiant"] { --grad-primary:linear-gradient(135deg,#0757dc 0%,#297dff 42%,#c248ff 100%); --grad-primary-vivid:linear-gradient(135deg,#0354d3 0%,#23a9ff 45%,#9d62ff 100%); --nf-card-glow:rgba(139,78,255,.26); }
+html[data-nf-realm="celestial"] { --grad-primary:linear-gradient(135deg,#0a55dd 0%,#29a9ff 42%,#63f5ff 100%); --grad-primary-vivid:linear-gradient(135deg,#043fae 0%,#1aa8ff 44%,#77fff2 100%); --nf-card-glow:rgba(46,218,255,.28); }
+html[data-nf-realm="nebula"] { --grad-primary:linear-gradient(135deg,#304be8 0%,#7c4dff 46%,#ef58ba 100%); --grad-primary-vivid:linear-gradient(135deg,#2746d9 0%,#8a62ff 48%,#ff6eae 100%); --nf-card-glow:rgba(177,78,255,.30); }
+html[data-nf-realm="cosmic"] { --paper:#eef3ff; --panel:#fff; --ink:#0b1130; --ink-soft:#283155; --ink-muted:#66709b; --line:rgba(44,56,120,.14); --line-strong:rgba(50,63,150,.25); --grad-primary:linear-gradient(135deg,#183bc9 0%,#604dff 46%,#18cfff 100%); --grad-primary-vivid:linear-gradient(135deg,#0e2db0 0%,#5f52f7 45%,#29d8ff 100%); --nf-card-glow:rgba(95,82,255,.32); }
+html[data-nf-realm="royal"] { --paper:#faf7f1; --panel:#fffdf9; --ink:#271a0b; --ink-soft:#4b3a27; --ink-muted:#786b58; --line:rgba(120,82,16,.16); --line-strong:rgba(168,117,23,.30); --grad-primary:linear-gradient(135deg,#17349f 0%,#6d4cf4 44%,#f3a51c 100%); --grad-primary-vivid:linear-gradient(135deg,#17318c 0%,#8a5bff 44%,#ffd15c 100%); --nf-card-glow:rgba(246,174,38,.34); }
+html[data-nf-realm="divine"] { --paper:#17132a; --panel:#211b38; --ink:#fff8e8; --ink-soft:#eadff9; --ink-muted:#b7a9d6; --line:rgba(255,229,171,.14); --line-strong:rgba(255,216,126,.28); --slate-50:#261f42; --slate-100:#2e264e; --slate-200:#403660; --grad-primary:linear-gradient(135deg,#5d34e6 0%,#a95cff 45%,#ffd15c 100%); --grad-primary-vivid:linear-gradient(135deg,#5b2fe4 0%,#b66dff 45%,#fff2ae 100%); --primary-600:#bca0ff; --primary-50:#2a2147; --primary-100:#4a3971; --nf-card-glow:rgba(192,121,255,.38); }
+html[data-nf-realm="eternal"] { --paper:#090c19; --panel:#10162a; --ink:#f8fbff; --ink-soft:#dce7ff; --ink-muted:#9aa7c4; --line:rgba(150,198,255,.14); --line-strong:rgba(91,219,255,.28); --slate-50:#141d36; --slate-100:#192443; --slate-200:#26345a; --grad-primary:linear-gradient(135deg,#0b67e8 0%,#6957ff 35%,#d85cff 64%,#ffd866 100%); --grad-primary-vivid:linear-gradient(135deg,#128bff 0%,#7c62ff 33%,#fa6cff 65%,#ffe68a 100%); --primary-600:#72caff; --primary-50:#132341; --primary-100:#24416c; --nf-card-glow:rgba(83,183,255,.42); }
+html[data-nf-realm="transcendent"] { --paper:#05060d; --panel:#0d1020; --ink:#fff; --ink-soft:#e4e7f4; --ink-muted:#9ca4bf; --line:rgba(255,255,255,.13); --line-strong:rgba(255,255,255,.25); --slate-50:#11172b; --slate-100:#17203a; --slate-200:#263154; --grad-primary:linear-gradient(135deg,#4df5ff 0%,#5d67ff 24%,#bd5dff 49%,#ff64b4 73%,#ffd969 100%); --grad-primary-vivid:linear-gradient(135deg,#4df5ff 0%,#7269ff 25%,#d263ff 52%,#ff69b5 76%,#ffe48b 100%); --primary-600:#8defff; --primary-50:#14233d; --primary-100:#284b6b; --nf-card-glow:rgba(148,101,255,.52); }
+
+html[data-nf-realm="cosmic"] body { background-image:radial-gradient(circle at 10% -10%,rgba(60,118,255,.20),transparent 34%),radial-gradient(circle at 94% 10%,rgba(148,78,255,.18),transparent 32%),radial-gradient(circle at 55% 100%,rgba(47,227,255,.12),transparent 38%); }
+html[data-nf-realm="royal"] body { background-image:radial-gradient(circle at 10% 0%,rgba(255,213,103,.18),transparent 30%),radial-gradient(circle at 92% 5%,rgba(132,96,255,.15),transparent 34%),radial-gradient(circle at 50% 100%,rgba(206,129,27,.10),transparent 42%); }
+html[data-nf-realm="divine"] body { background-image:radial-gradient(circle at 15% 0%,rgba(150,90,255,.25),transparent 32%),radial-gradient(circle at 88% 10%,rgba(255,190,78,.17),transparent 30%),radial-gradient(circle at 55% 90%,rgba(221,75,255,.12),transparent 42%),radial-gradient(circle,rgba(255,255,255,.13) 1px,transparent 1.4px); background-size:auto,auto,auto,34px 34px; }
+html[data-nf-realm="eternal"] body { background-image:radial-gradient(circle at 7% 6%,rgba(22,161,255,.23),transparent 30%),radial-gradient(circle at 92% 8%,rgba(153,82,255,.23),transparent 33%),radial-gradient(circle at 55% 90%,rgba(255,72,186,.12),transparent 36%),radial-gradient(circle,rgba(193,237,255,.22) 1px,transparent 1.5px); background-size:auto,auto,auto,38px 38px; }
+html[data-nf-realm="transcendent"] body { background-image:radial-gradient(circle at 15% 0%,rgba(78,224,255,.20),transparent 28%),radial-gradient(circle at 85% 4%,rgba(202,95,255,.22),transparent 30%),radial-gradient(circle at 56% 35%,rgba(255,99,175,.10),transparent 35%),radial-gradient(circle,rgba(255,255,255,.28) 1px,transparent 1.6px); background-size:auto,auto,auto,32px 32px; }
+
+html[data-nf-realm="divine"] #app-header,html[data-nf-realm="eternal"] #app-header,html[data-nf-realm="transcendent"] #app-header,html[data-nf-realm="divine"] #bottom-nav,html[data-nf-realm="eternal"] #bottom-nav,html[data-nf-realm="transcendent"] #bottom-nav { background:color-mix(in srgb,var(--panel) 86%,transparent); border-color:var(--line-strong); }
+html[data-nf-realm="divine"] .card,html[data-nf-realm="eternal"] .card,html[data-nf-realm="transcendent"] .card,html[data-nf-realm="divine"] .bento-card,html[data-nf-realm="eternal"] .bento-card,html[data-nf-realm="transcendent"] .bento-card { box-shadow:0 22px 55px -26px rgba(0,0,0,.76),0 0 28px -20px var(--nf-card-glow),0 0 0 1px rgba(255,255,255,.05) inset; }
+
+/* Level badge: increasingly luminous frame, but same geometry. */
+.level-badge { isolation:isolate; box-shadow:0 12px 30px -16px rgba(5,40,120,.25),0 0 26px -12px var(--nf-card-glow); }
+.level-badge::before,.level-badge::after { content:''; position:absolute; pointer-events:none; z-index:0; }
+.level-badge::before { inset:-40%; background:conic-gradient(from 0deg,transparent 0deg,rgba(255,255,255,.18) 65deg,transparent 120deg,transparent 360deg); opacity:.28; animation:nfBadgeOrbit 7s linear infinite; }
+.level-badge::after { width:11rem;height:11rem;right:-5rem;top:-7rem;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.24),transparent 68%);filter:blur(3px);opacity:.45; }
+.level-badge > * { position:relative; z-index:1; }
+@keyframes nfBadgeOrbit { to { transform:rotate(360deg); } }
+.level-badge.nf-level-live .level-badge__icon { animation:nfLevelIconPop 650ms cubic-bezier(.22,1.6,.35,1) both; }
+@keyframes nfLevelIconPop { 0%{transform:scale(.78) rotate(-7deg);filter:brightness(.9)}55%{transform:scale(1.12) rotate(2deg);filter:brightness(1.28)}100%{transform:scale(1) rotate(0);filter:brightness(1)} }
+
+.level-badge[data-nf-realm="radiant"] { border:2px solid transparent; background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(135deg,#1a6bf0,#7d56ff,#ff63b6) border-box; }
+.level-badge[data-nf-realm="celestial"] { border:2px solid transparent; background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(135deg,#0c57dd,#28cfff,#8ffff4) border-box; }
+.level-badge[data-nf-realm="nebula"] { border:2px solid transparent; background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(135deg,#4e4af3,#a75cff,#ff65b4) border-box; }
+.level-badge[data-nf-realm="cosmic"] { border:2px solid transparent; background:linear-gradient(var(--panel),var(--panel)) padding-box,conic-gradient(from 0deg,#2f6cff,#7b58ff,#35d9ff,#ffd45b,#2f6cff) border-box; animation:nfCosmicBorder 8s linear infinite; }
+.level-badge[data-nf-realm="royal"] { border:2px solid transparent; background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(135deg,#273da0,#9b68ff 46%,#ffd467 78%,#fff0ad) border-box; }
+.level-badge[data-nf-realm="divine"] { border:2px solid transparent; background:linear-gradient(var(--panel),var(--panel)) padding-box,conic-gradient(from 90deg,#8a5bff,#ff77cb,#ffe08a,#a8fff3,#8a5bff) border-box; }
+.level-badge[data-nf-realm="eternal"] { border:2px solid transparent; background:linear-gradient(var(--panel),var(--panel)) padding-box,conic-gradient(from 0deg,#48e9ff,#6d67ff,#d45cff,#ff65ac,#ffe06c,#48e9ff) border-box; animation:nfCosmicBorder 5.5s linear infinite; }
+.level-badge[data-nf-realm="transcendent"] { border:2px solid transparent; background:linear-gradient(var(--panel),var(--panel)) padding-box,conic-gradient(from 0deg,#56f6ff,#6172ff,#c96dff,#ff71ba,#ffe27c,#5dffc8,#56f6ff) border-box; animation:nfCosmicBorder 4.4s linear infinite,nfLegendGlow 2.2s ease-in-out infinite; }
+.level-badge[data-nf-realm="cosmic"] .level-badge__icon,.level-badge[data-nf-realm="royal"] .level-badge__icon,.level-badge[data-nf-realm="divine"] .level-badge__icon,.level-badge[data-nf-realm="eternal"] .level-badge__icon,.level-badge[data-nf-realm="transcendent"] .level-badge__icon { background:var(--grad-primary-vivid); box-shadow:0 8px 24px -5px rgba(94,109,255,.50),0 0 24px -7px rgba(255,218,114,.48); }
+@keyframes nfCosmicBorder { to { filter:hue-rotate(360deg); } }
+@keyframes nfLegendGlow { 0%,100%{filter:brightness(1)}50%{filter:brightness(1.13)} }
+
+/* Full-screen level-up ceremony. */
+.nf-level-celebration { position:fixed;inset:0;z-index:320;display:grid;place-items:center;padding:1.25rem;background:rgba(3,5,14,.72);backdrop-filter:blur(12px) saturate(150%);-webkit-backdrop-filter:blur(12px) saturate(150%);opacity:0;pointer-events:none;transition:opacity:320ms ease; }
+.nf-level-celebration.is-show{opacity:1;pointer-events:auto}
+.nf-level-celebration__canvas,.nf-level-celebration__aurora{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.nf-level-celebration__aurora{background:radial-gradient(circle at 50% 41%,rgba(77,218,255,.23),transparent 23%),radial-gradient(circle at 36% 46%,rgba(150,93,255,.18),transparent 24%),radial-gradient(circle at 66% 46%,rgba(255,94,177,.16),transparent 24%);animation:nfAurora 2.6s ease-in-out infinite}
+@keyframes nfAurora{0%,100%{transform:scale(.96);opacity:.78}50%{transform:scale(1.08);opacity:1}}
+.nf-level-celebration__content{position:relative;width:min(32rem,calc(100vw - 2rem));min-height:22rem;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2.3rem 1.5rem 2rem;color:#fff;border:1px solid rgba(255,255,255,.20);border-radius:2rem;background:linear-gradient(160deg,rgba(15,23,55,.94),rgba(8,11,26,.96));box-shadow:0 30px 100px -24px rgba(0,0,0,.90),0 0 70px -15px rgba(80,212,255,.48),0 0 0 1px rgba(255,255,255,.06) inset;transform:translateY(28px) scale(.92);transition:transform 520ms cubic-bezier(.22,1.5,.34,1);overflow:hidden;}
+.nf-level-celebration.is-show .nf-level-celebration__content{transform:translateY(0) scale(1)}
+.nf-level-celebration__content::before,.nf-level-celebration__content::after{content:'';position:absolute;border-radius:50%;pointer-events:none}
+.nf-level-celebration__content::before{width:20rem;height:20rem;top:-13rem;left:-9rem;background:radial-gradient(circle,rgba(79,226,255,.30),transparent 66%)}
+.nf-level-celebration__content::after{width:18rem;height:18rem;right:-8rem;bottom:-12rem;background:radial-gradient(circle,rgba(207,92,255,.28),transparent 66%)}
+.nf-level-celebration__eyebrow{font-family:var(--font-display);font-size:.8rem;font-weight:800;letter-spacing:.22em;color:#bdf7ff;text-shadow:0 0 16px rgba(84,227,255,.72);margin-bottom:.8rem}
+.nf-level-celebration__ring{position:relative;width:7.5rem;height:7.5rem;display:grid;place-items:center;margin:.2rem 0 1.1rem;border-radius:50%;background:conic-gradient(from 0deg,#53efff,#7d69ff,#ff70bf,#ffd968,#53efff);box-shadow:0 0 0 1px rgba(255,255,255,.26) inset,0 0 34px rgba(91,212,255,.52),0 0 68px rgba(170,93,255,.24);animation:nfRingSpin 6s linear infinite}
+.nf-level-celebration__ring::before,.nf-level-celebration__ring::after{content:'';position:absolute;inset:-.7rem;border-radius:50%;border:1px solid rgba(255,255,255,.18);animation:nfRingPulse 1.8s ease-out infinite}
+.nf-level-celebration__ring::after{inset:-1.45rem;opacity:.5;animation-delay:.45s}
+@keyframes nfRingSpin{to{transform:rotate(360deg)}} @keyframes nfRingPulse{0%{transform:scale(.76);opacity:.8}100%{transform:scale(1.25);opacity:0}}
+.nf-level-celebration__icon{width:5.7rem;height:5.7rem;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff,#eef3ff 18%,#7dcaff 54%,#5d55ff 100%);color:#13234a;box-shadow:0 0 34px rgba(163,239,255,.60),0 0 50px rgba(149,99,255,.36);animation:nfIconFloat 1.6s ease-in-out infinite}
+.nf-level-celebration__icon i{font-size:2.2rem}@keyframes nfIconFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-5px) scale(1.05)}}
+.nf-level-celebration__level{font-family:var(--font-display);font-size:clamp(1.2rem,4vw,1.55rem);font-weight:800;color:#fff}
+.nf-level-celebration__title{margin-top:.2rem;font-family:var(--font-display);font-size:clamp(1.8rem,7vw,3.1rem);line-height:1.05;font-weight:800;letter-spacing:-.035em;background:linear-gradient(100deg,#fff,#79edff 32%,#9b7cff 60%,#ffd776 83%,#fff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 18px rgba(135,220,255,.30))}
+.nf-level-celebration__desc{max-width:26rem;margin-top:.8rem;color:rgba(235,241,255,.84);font-size:.94rem;line-height:1.55}
+.nf-level-celebration__xp{margin-top:1rem;padding:.42rem .85rem;border-radius:999px;color:#fff1b7;background:rgba(255,208,91,.12);border:1px solid rgba(255,216,119,.24);box-shadow:0 0 20px -8px rgba(255,213,103,.58);font-family:var(--font-display);font-size:.84rem;font-weight:700}
+.nf-level-celebration[data-nf-realm="royal"] .nf-level-celebration__content{box-shadow:0 30px 100px -24px rgba(0,0,0,.90),0 0 70px -15px rgba(255,211,100,.55),0 0 0 1px rgba(255,219,132,.14) inset}
+.nf-level-celebration[data-nf-realm="divine"] .nf-level-celebration__ring{background:conic-gradient(from 0deg,#a86cff,#ff73c5,#ffe27e,#8ffff4,#a86cff)}
+.nf-level-celebration[data-nf-realm="eternal"] .nf-level-celebration__content,.nf-level-celebration[data-nf-realm="transcendent"] .nf-level-celebration__content{background:linear-gradient(160deg,rgba(8,13,32,.97),rgba(8,7,20,.98))}
+@media(max-width:480px){.nf-level-celebration{padding:.75rem}.nf-level-celebration__content{min-height:20rem;border-radius:1.5rem;padding:1.8rem 1rem 1.55rem}.nf-level-celebration__ring{width:6.5rem;height:6.5rem}.nf-level-celebration__icon{width:4.95rem;height:4.95rem}.nf-level-celebration__icon i{font-size:1.9rem}}
+@media(prefers-reduced-motion:reduce){.btn--primary::after,.search-bar__btn::after,.logo__icon::after,.nav-btn--camera .nav-btn__icon-wrap::after,.level-badge::before,.level-badge.nf-level-live .level-badge__icon,.level-badge[data-nf-realm="cosmic"],.level-badge[data-nf-realm="eternal"],.level-badge[data-nf-realm="transcendent"],.nf-level-celebration__aurora,.nf-level-celebration__ring,.nf-level-celebration__ring::before,.nf-level-celebration__ring::after,.nf-level-celebration__icon{animation:none!important}}
