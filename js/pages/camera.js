@@ -526,7 +526,7 @@ const NF_PageCamera = (() => {
         <div class="result-card__header">
           <div>
             <span class="result-card__badge">
-              <i class="fa-solid fa-sparkles"></i> AI Phân Tích
+              <i class="fa-solid fa-wand-magic-sparkles"></i> AI Phân Tích
             </span>
             <h2 class="result-card__name" style="margin-top:0.25rem;">${NF_UI.escapeHtml(data.name)}</h2>
             <div class="result-card__serving">

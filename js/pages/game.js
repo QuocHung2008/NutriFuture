@@ -77,6 +77,7 @@ const NF_PageGame = (() => {
         ${l.active ? '<span class="look-tile__check"><i class="fa-solid fa-check"></i></span>' : ''}
         <span class="look-tile__swatch" style="background:${grad};"></span>
         <span class="look-tile__name">${esc(l.name)}</span>
+        <span class="look-tile__desc">${esc(l.desc || '')}</span>
         <span class="look-tile__meta">${meta}</span>
       </button>`;
   }

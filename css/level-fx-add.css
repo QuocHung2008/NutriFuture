@@ -39,6 +39,12 @@
   --amber-700: #8a5205;
   --line: rgba(20, 32, 80, 0.14);
   --line-strong: rgba(20, 32, 80, 0.26);
+  --nf-hi: rgba(255, 255, 255, 0.55);       /* vạch sáng mép trên thẻ */
+  --nf-shadow-rgb: 10, 40, 120;             /* màu bóng đổ */
+}
+html[data-theme="dark"], html[data-nf-realm="divine"], html[data-nf-realm="eternal"], html[data-nf-realm="transcendent"] {
+  --nf-hi: rgba(255, 255, 255, 0.07);
+  --nf-shadow-rgb: 0, 0, 0;
 }
 
 html, body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -57,6 +63,20 @@ button:focus-visible, a:focus-visible { border-radius: var(--radius-full); }
 
 /* Chữ gợi ý mờ (--slate-400) trên nền tối cũng phải đủ rõ */
 html[data-theme="dark"], html[data-nf-realm="divine"], html[data-nf-realm="eternal"], html[data-nf-realm="transcendent"] { --slate-400: #8f9bb9; }
+html[data-theme="dark"] { --ink-faint: #97a3c2; }   /* nhãn tab, mô tả huy hiệu… trên nền tối: cần ≥ 4.5:1 */
+
+/* Chữ gradient (số lớn, logo, nhãn "NUTRIFUTURE AI"): chỉ dùng 2 mốc ĐỦ ĐẬM trên nền sáng, và bảng SÁNG trên nền tối,
+   để chữ không bị chìm (trước đây mốc cuối rất nhạt / mốc đầu quá tối tuỳ giao diện). */
+html[data-nf-realm] { --grad-text: linear-gradient(120deg, var(--nf-g1), var(--nf-g2)); }
+html[data-nf-realm="royal"] { --grad-text: linear-gradient(120deg, #4a35d9, #a45f05); }
+html[data-theme="dark"][data-nf-realm]:not([data-nf-realm="divine"]):not([data-nf-realm="eternal"]):not([data-nf-realm="transcendent"]) {
+  --grad-text: linear-gradient(120deg, color-mix(in srgb, var(--nf-g2) 55%, #fff), color-mix(in srgb, var(--nf-g3) 70%, #fff));
+}
+html[data-nf-realm="divine"] { --grad-text: linear-gradient(120deg, #e6d9ff, #ffe08a); }
+html[data-nf-realm="eternal"] { --grad-text: linear-gradient(120deg, #ffe08a, #ff8a3d 60%, #ff6a2a); }
+html[data-nf-realm="transcendent"] { --grad-text: linear-gradient(120deg, #9fe8ff, #d4b3ff 55%, #ffb3e0); }
+.logo__text span, .stat-card__value, .result-card__calories { background-image: var(--grad-text, var(--grad-primary)); }
+@media (min-width: 1024px) { #bottom-nav::before { background-image: var(--grad-text, var(--grad-primary)); } }
 
 /* Dùng chung: gradient + quầng sáng lấy từ điểm nhấn của giao diện */
 html[data-nf-realm] {
@@ -88,14 +108,15 @@ html[data-nf-realm="fresh"] {
   --nf-s1: #1a96ff; --nf-s2: #12b76a; --nf-s3: #ffb020;
 }
 
-/* 2 · radiant — Rạng Đông (xanh → tím → hồng) */
+/* 2 · radiant — Rạng Đông (bình minh: cam → hồng → tím) */
 html[data-nf-realm="radiant"] {
-  --nf-g1: #0757dc; --nf-g2: #6d4cff; --nf-g3: #ff5fb3;
-  --nf-glow-rgb: 124, 77, 255; --nf-glow2-rgb: 255, 95, 179;
-  --nf-s1: #6d4cff; --nf-s2: #ff5fb3; --nf-s3: #1a96ff;
-  --nf-p50: #f1edff; --nf-p100: #e2d9ff; --nf-p200: #c6b3ff; --nf-p300: #a68aff; --nf-p400: #8a68ff;
-  --nf-p500: #6d4cff; --nf-p600: #5433e6; --nf-p700: #4326bd;
+  --nf-g1: #c2410c; --nf-g2: #db2777; --nf-g3: #f59e0b;
+  --nf-glow-rgb: 255, 120, 50; --nf-glow2-rgb: 255, 95, 179;
+  --nf-s1: #ff8a3d; --nf-s2: #ff5fb3; --nf-s3: #ffc23d;
+  --nf-p50: #fff3e8; --nf-p100: #ffe3cc; --nf-p200: #ffc79a; --nf-p300: #ffa25c; --nf-p400: #ff8030;
+  --nf-p500: #e8590c; --nf-p600: #b93a06; --nf-p700: #922e04;
 }
+html[data-nf-realm="radiant"]:not([data-theme="dark"]) { --paper: #fff6ec; --panel: #fffdfa; --line: rgba(150, 80, 20, 0.16); --line-strong: rgba(170, 90, 20, 0.28); }
 
 /* 3 · celestial — Thiên Lam (lam → cyan) */
 html[data-nf-realm="celestial"] {
@@ -147,16 +168,16 @@ html[data-nf-realm="divine"] {
   --line: rgba(255, 229, 171, 0.16); --line-strong: rgba(255, 216, 126, 0.32);
 }
 
-/* 8 · eternal — Vĩnh Hằng (xanh điện → tím → hồng, nền tối) */
+/* 8 · eternal — Vĩnh Hằng (lửa bất diệt: đỏ thẫm → cam → vàng, nền đen than) */
 html[data-nf-realm="eternal"] {
-  --nf-g1: #0b6fe0; --nf-g2: #6a4df0; --nf-g3: #ff5fd0;
-  --nf-glow-rgb: 83, 183, 255; --nf-glow2-rgb: 255, 95, 208;
-  --nf-s1: #7fd6ff; --nf-s2: #ffa2ea; --nf-s3: #ffffff;
-  --nf-p50: #10203d; --nf-p100: #17305a; --nf-p200: #21467f; --nf-p300: #2f66b3; --nf-p400: #48a3ff;
-  --nf-p500: #5db9ff; --nf-p600: #8fd3ff; --nf-p700: #bce6ff;
-  --ink-faint: #9aa6c6;
-  --paper: #090c19; --panel: #111830; --slate-50: #141d36; --slate-100: #1a2545; --slate-200: #27365e;
-  --line: rgba(150, 198, 255, 0.16); --line-strong: rgba(91, 219, 255, 0.32);
+  --nf-g1: #a3160c; --nf-g2: #d4400a; --nf-g3: #ffb020;
+  --nf-glow-rgb: 255, 110, 30; --nf-glow2-rgb: 255, 176, 32;
+  --nf-s1: #ff8a3d; --nf-s2: #ffd25a; --nf-s3: #ff4d2e;
+  --nf-p50: #2b1410; --nf-p100: #3c1b12; --nf-p200: #5a2716; --nf-p300: #8a3b1d; --nf-p400: #ff7a3a;
+  --nf-p500: #ff8f4d; --nf-p600: #ffb27a; --nf-p700: #ffd3b0;
+  --ink-faint: #c4a898;
+  --paper: #120806; --panel: #1d100b; --slate-50: #241410; --slate-100: #2e1a13; --slate-200: #452919;
+  --line: rgba(255, 150, 80, 0.20); --line-strong: rgba(255, 140, 60, 0.36);
 }
 
 /* 9 · transcendent — Siêu Việt (cầu vồng, nền đen) */
@@ -199,6 +220,7 @@ html[data-nf-realm="transcendent"] .btn--primary i, html[data-nf-realm="transcen
 .look-tile:active { transform: scale(0.97); }
 .look-tile__swatch { height: 2.6rem; border-radius: var(--radius-md); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 6px 14px -8px rgba(0, 0, 0, 0.5); }
 .look-tile__name { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-sm); color: var(--ink); line-height: 1.25; }
+.look-tile__desc { font-size: var(--fs-xs); line-height: 1.35; color: var(--ink-muted); font-weight: 600; min-height: 2.7em; }
 .look-tile__meta { display: flex; align-items: center; gap: 0.35rem; font-size: var(--fs-xs); font-weight: 700; color: var(--ink-muted); }
 .look-tile--active { border-color: var(--primary-500); box-shadow: 0 0 0 3px rgba(var(--nf-glow-rgb), 0.28), 0 14px 30px -14px rgba(var(--nf-glow-rgb), 0.7); }
 .look-tile--active .look-tile__meta { color: var(--primary-600); }
@@ -208,7 +230,8 @@ html[data-nf-realm="transcendent"] .btn--primary i, html[data-nf-realm="transcen
 .look-note { font-size: var(--fs-xs); line-height: 1.55; color: var(--ink-muted); margin-top: var(--sp-3); }
 
 /* --------------------------------------------------------------------------
-   3. NỀN — quầng sáng đổi màu theo giao diện
+   3. NỀN CHUNG — quầng sáng đổi màu theo giao diện
+      (mỗi giao diện ghi đè nền + thêm "cảnh nền" riêng trong css/looks.css)
    -------------------------------------------------------------------------- */
 html[data-nf-realm] body {
   background-image:
@@ -220,16 +243,14 @@ html[data-nf-realm="divine"] body, html[data-nf-realm="eternal"] body, html[data
   background-image:
     radial-gradient(circle at 10% -8%, rgba(var(--nf-glow-rgb), 0.30), transparent 40%),
     radial-gradient(circle at 100% 2%, rgba(var(--nf-glow2-rgb), 0.20), transparent 38%),
-    radial-gradient(circle at 55% 100%, rgba(var(--nf-glow-rgb), 0.14), transparent 42%),
-    radial-gradient(circle, rgba(255, 255, 255, 0.22) 1px, transparent 1.6px);
-  background-size: auto, auto, auto, 34px 34px;
+    radial-gradient(circle at 55% 100%, rgba(var(--nf-glow-rgb), 0.14), transparent 42%);
 }
 
 /* --------------------------------------------------------------------------
-   4. ĐIỀU HƯỚNG & HEADER
+   4. ĐIỀU HƯỚNG & HEADER (phần dùng chung — hiệu ứng riêng từng giao diện nằm trong looks.css)
    -------------------------------------------------------------------------- */
 .logo__icon { position: relative; isolation: isolate; overflow: hidden; }
-.logo__icon i { animation: nfFloat 3.6s ease-in-out infinite; }
+.btn--primary { position: relative; }
 .nav-btn i, .nav-btn span { position: relative; }
 
 /* Điện thoại: tab đang chọn nổi khối + thanh chỉ báo phát sáng */
@@ -239,16 +260,10 @@ html[data-nf-realm="divine"] body, html[data-nf-realm="eternal"] body, html[data
 .nav-btn:active i { transform: scale(0.86); }
 .nav-btn.active:active i { transform: translateY(-1px) scale(1.02); }
 
-/* Máy tính: viên thuốc chọn có gradient rực + ánh chạy qua */
 @media (min-width: 1024px) {
   .nav-btn { overflow: hidden; }
-  .nav-btn.active { background: var(--grad-btn, var(--grad-primary-vivid)); box-shadow: 0 10px 26px -8px rgba(var(--nf-glow-rgb), 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+  .nav-btn.active { background: var(--grad-btn, var(--grad-primary-vivid)); box-shadow: 0 10px 26px -8px rgba(var(--nf-glow-rgb), 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
   .nav-btn.active i { transform: scale(1.08); filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.28)); }
-  .nav-btn.active::after {
-    content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-    background: linear-gradient(115deg, transparent 22%, rgba(255, 255, 255, 0.5) 45%, transparent 66%);
-    transform: translateX(-130%); animation: nfShine 4.2s ease-in-out infinite;
-  }
   .nav-btn:not(.active):hover i { transform: scale(1.15) rotate(-6deg); color: var(--primary-600); }
   .nav-btn:not(.active):hover { transform: translateX(3px); }
   .nav-btn { transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), transform 180ms var(--ease-spring); }
@@ -259,103 +274,64 @@ html[data-nf-realm="divine"] body, html[data-nf-realm="eternal"] body, html[data
 .header-date:active { transform: scale(0.94); }
 
 /* --------------------------------------------------------------------------
-   5. NÚT · THẺ · THANH TIẾN ĐỘ
+   5. NÚT · THẺ · THANH TIẾN ĐỘ (phần dùng chung)
    -------------------------------------------------------------------------- */
 
-/* --- Nút gradient rực + ánh chạy + viền sáng --- */
+/* Nút chính. overflow:hidden BẮT BUỘC: các hiệu ứng quét sáng (::after) chạy từ ngoài vào trong nút —
+   nếu không cắt, vệt sáng trắng tràn ra ngoài nút và hiện rõ trên nền tối (lỗi "quét ánh sáng" ở dark mode). */
 .btn--primary, .search-bar__btn {
+  isolation: isolate; overflow: hidden;   /* KHÔNG đặt position ở đây: .search-bar__btn là position:absolute (neo trong ô nhập) — đặt relative làm nút bị lệch */
   background-image: var(--grad-btn, var(--grad-primary-vivid));
-  background-size: 160% 160%;
-  box-shadow: 0 12px 28px -10px rgba(var(--nf-glow-rgb), 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 0 rgba(0, 0, 0, 0.1);
-  animation: nfGradShift 7s ease-in-out infinite;
+  box-shadow: 0 12px 28px -10px rgba(var(--nf-glow-rgb), 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -2px 0 rgba(0, 0, 0, 0.1);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
 }
-.logo__icon, .shutter-btn::before { background-image: var(--grad-primary-vivid); box-shadow: 0 10px 26px -8px rgba(var(--nf-glow-rgb), 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
-.btn--primary:hover:not(:disabled), .search-bar__btn:hover:not(:disabled) { filter: brightness(1.07) saturate(1.1); box-shadow: 0 16px 34px -10px rgba(var(--nf-glow-rgb), 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.55); }
-.btn--primary, .search-bar__btn { text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22); }
+.btn--primary > *, .search-bar__btn > *, .logo__icon > * { position: relative; z-index: 1; }
+.logo__icon, .shutter-btn::before { background-image: var(--grad-primary-vivid); box-shadow: 0 10px 26px -8px rgba(var(--nf-glow-rgb), 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+.btn--primary:hover:not(:disabled), .search-bar__btn:hover:not(:disabled) { filter: brightness(1.07) saturate(1.1); box-shadow: 0 16px 34px -10px rgba(var(--nf-glow-rgb), 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
 .btn--danger { background: #c81e3f; }
+/* Điện thoại: nút Tra cứu gọn hơn để không che mất gợi ý trong ô nhập (chữ + icon vẫn vừa, kiểm tra tới màn 340px) */
+@media (max-width: 480px) { .search-bar { --search-btn-w: 7.6rem; } }
 .water-tracker__btn { background: #066f96; }
 .water-tracker__btn:hover { background: #055a7a; }
 .btn--outline:hover:not(:disabled) { border-color: var(--primary-500); box-shadow: 0 10px 22px -12px rgba(var(--nf-glow-rgb), 0.7); }
 
-.btn--primary, .search-bar__btn, .logo__icon { position: relative; isolation: isolate; }
-.btn--primary::after, .search-bar__btn::after, .logo__icon::after {
-  content: ''; position: absolute; inset: 1px; border-radius: inherit; pointer-events: none; z-index: 0;
-  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.5) 42%, transparent 62%);
-  transform: translateX(-130%); animation: nfShine 4.6s ease-in-out infinite;
-}
-.btn--primary > *, .search-bar__btn > *, .logo__icon > * { position: relative; z-index: 1; }
-
-/* --- Thẻ: viền rõ + bóng 2 lớp (sắc nét) --- */
+/* Thẻ: viền rõ + bóng 2 lớp. Vạch sáng mép trên (--nf-hi) rất nhạt ở nền tối — trước đây là trắng đậm nên hiện thành đường sáng lạ. */
 .card, .bento-card, .quick-card, .metric-card, .result-card, .diary-entry, .lookup-history__item, .history-date-card, .meal-plan-card {
   border-color: var(--line-strong);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset, 0 1px 2px rgba(10, 30, 90, 0.10), 0 12px 30px -16px rgba(10, 40, 120, 0.34);
+  box-shadow: 0 1px 0 var(--nf-hi) inset, 0 1px 2px rgba(var(--nf-shadow-rgb), 0.10), 0 12px 30px -16px rgba(var(--nf-shadow-rgb), 0.34);
 }
-.meal-plan-card { box-shadow: inset 4px 0 0 var(--mp-accent), 0 1px 2px rgba(10, 30, 90, 0.10), 0 12px 30px -16px rgba(10, 40, 120, 0.34); }
+.meal-plan-card { box-shadow: inset 4px 0 0 var(--mp-accent), 0 1px 2px rgba(var(--nf-shadow-rgb), 0.10), 0 12px 30px -16px rgba(var(--nf-shadow-rgb), 0.34); }
 @media (hover: hover) {
-  .card:hover, .bento-card:hover, .result-card:hover { border-color: rgba(var(--nf-glow-rgb), 0.55); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset, 0 20px 44px -18px rgba(var(--nf-glow-rgb), 0.55); }
+  .card:hover, .bento-card:hover, .result-card:hover { border-color: rgba(var(--nf-glow-rgb), 0.55); box-shadow: 0 1px 0 var(--nf-hi) inset, 0 20px 44px -18px rgba(var(--nf-glow-rgb), 0.55); }
   .quick-card:hover, .metric-card:hover { border-color: rgba(var(--nf-glow-rgb), 0.7); box-shadow: 0 20px 40px -16px rgba(var(--nf-glow-rgb), 0.65); }
   .quick-card:hover .quick-card__icon { transform: scale(1.14) rotate(-5deg); }
 }
-.quick-card .quick-card__icon { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 6px 14px -6px rgba(var(--nf-glow-rgb), 0.55); }
+.quick-card .quick-card__icon { box-shadow: inset 0 1px 0 var(--nf-hi), 0 6px 14px -6px rgba(var(--nf-glow-rgb), 0.55); }
 
-/* --- Thẻ nhấn mạnh (card--glass): viền gradient + quầng sáng "thở" + sao lấp lánh ở góc --- */
+/* Thẻ nhấn mạnh: viền gradient 2px. Bù padding 1px để nội dung KHÔNG bị hẹp đi (trước đây hẹp 2px làm chữ xuống dòng thêm, thẻ cao thêm ~25px trên điện thoại). */
+.card--glass { padding: calc(var(--sp-5) - 1px); }
+@media (min-width: 768px) { .card--glass { padding: calc(var(--sp-6) - 1px); } }
 .card--glass {
   border-width: 2px;
   background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--grad-primary-vivid) border-box;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 22px 50px -22px rgba(var(--nf-glow-rgb), 0.6);
-}
-.card--glass::after {
-  content: ''; position: absolute; inset: -2px; border-radius: inherit; pointer-events: none; z-index: 0;
-  box-shadow: 0 0 0 2px rgba(var(--nf-glow-rgb), 0.55), 0 0 34px 2px rgba(var(--nf-glow-rgb), 0.38);
-  opacity: 0.25; animation: nfBreathe 3.6s ease-in-out infinite;
-}
-.card--glass::before {
-  content: ''; position: absolute; top: -0.65rem; right: 1.4rem; width: 1.3rem; height: 1.3rem; pointer-events: none; z-index: 2;
-  background: radial-gradient(circle, #fff 0 14%, var(--nf-s1) 15% 42%, transparent 72%);
-  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
-  animation: nfTwinkle 3.2s ease-in-out infinite;
+  box-shadow: 0 1px 0 var(--nf-hi) inset, 0 22px 50px -22px rgba(var(--nf-glow-rgb), 0.6);
 }
 
-/* --- Số liệu lớn: gradient sắc nét + bóng sáng --- */
 .stat-card__value { text-shadow: none; filter: drop-shadow(0 4px 10px rgba(var(--nf-glow-rgb), 0.3)); }
 .metric-card__value { text-shadow: 0 0 22px rgba(var(--nf-glow-rgb), 0.18); }
 .nutrient-box { border-color: var(--line-strong); }
-
-/* --- Tiêu đề trang: vệt sáng quét qua 1 lần khi vào trang --- */
-.page-title {
-  background: linear-gradient(100deg, var(--ink) 0%, var(--ink) 38%, var(--primary-500) 50%, var(--ink) 62%, var(--ink) 100%);
-  background-size: 260% 100%; background-position: 0% 0;
-  -webkit-background-clip: text; background-clip: text;
-  color: var(--ink);
-  animation: nfTitleSweep 2.4s var(--ease-out) 0.15s both;
-}
-@supports ((-webkit-background-clip: text) or (background-clip: text)) { .page-title { -webkit-text-fill-color: transparent; } }
 .section-label, .card__label { text-shadow: 0 0 18px rgba(var(--nf-glow-rgb), 0.25); }
 
-/* --- Thanh tiến độ: đầy màu + ánh chạy --- */
-.progress-bar { box-shadow: inset 0 1px 2px rgba(10, 30, 90, 0.16); }
+/* Thanh tiến độ */
+.progress-bar { box-shadow: inset 0 1px 2px rgba(var(--nf-shadow-rgb), 0.16); }
 .progress-bar__fill {
   position: relative; overflow: hidden;
   background-image: var(--grad-primary-vivid);
   box-shadow: 0 0 14px rgba(var(--nf-glow-rgb), 0.85), 0 0 30px rgba(var(--nf-glow-rgb), 0.35);
 }
-.progress-bar__fill::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(100deg, transparent 25%, rgba(255, 255, 255, 0.75) 50%, transparent 75%);
-  transform: translateX(-120%); animation: nfBarShine 2.6s ease-in-out infinite;
-}
 
-/* --- Thẻ / nhãn / huy hiệu nhỏ: viền rõ, hiện dần có nhịp --- */
 .tag { border-width: 1.5px; font-weight: 800; }
-.advice-box { border-width: 1.5px; }
 .badge-tile--earned .badge-tile__icon { box-shadow: 0 0 0 3px rgba(var(--nf-glow-rgb), 0.25), 0 8px 18px -6px rgba(var(--nf-glow-rgb), 0.7); animation: nfBadgePulse 2.8s ease-in-out infinite; }
-.badge-tile--earned { position: relative; }
-.badge-tile--earned::after {
-  content: ''; position: absolute; top: 0.45rem; right: 0.55rem; width: 0.85rem; height: 0.85rem; pointer-events: none;
-  background: radial-gradient(circle, #fff 0 14%, var(--nf-s3) 15% 42%, transparent 72%);
-  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
-  animation: nfTwinkle 2.6s ease-in-out infinite;
-}
 .quiz-option { border-width: 2px; }
 @media (hover: hover) { .quiz-option:not(:disabled):hover { transform: translateX(4px); box-shadow: 0 10px 22px -14px rgba(var(--nf-glow-rgb), 0.8); } }
 .quiz-option { transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), transform 160ms var(--ease-spring), box-shadow 160ms var(--ease-out); }
@@ -364,59 +340,22 @@ html[data-nf-realm="divine"] body, html[data-nf-realm="eternal"] body, html[data
 .water-tracker__btn:active { transform: scale(0.9); }
 
 /* --------------------------------------------------------------------------
-   6. HUY HIỆU CẤP ĐỘ — mỗi giao diện một khung riêng
+   6. HUY HIỆU CẤP ĐỘ (phần dùng chung — khung/icon riêng từng giao diện nằm trong looks.css)
    -------------------------------------------------------------------------- */
-.level-badge { isolation: isolate; box-shadow: 0 12px 30px -16px rgba(5, 40, 120, 0.3), 0 0 26px -12px rgba(var(--nf-glow-rgb), 0.6); }
-.level-badge::before { content: ''; position: absolute; inset: -60%; pointer-events: none; z-index: 0; background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 255, 255, 0.28) 60deg, transparent 120deg, transparent 360deg); opacity: 0.4; animation: nfBadgeOrbit 7s linear infinite; }
+.level-badge { isolation: isolate; box-shadow: 0 12px 30px -16px rgba(var(--nf-shadow-rgb), 0.3), 0 0 26px -12px rgba(var(--nf-glow-rgb), 0.6); }
 .level-badge > * { position: relative; z-index: 1; }
+.level-badge__icon { position: relative; }
 .level-badge.nf-level-live .level-badge__icon { animation: nfLevelIconPop 650ms cubic-bezier(0.22, 1.6, 0.35, 1) both; }
-
-/* Từ cấp 2: khung + icon + chữ theo màu giao diện (ghi đè màu riêng từng cấp cũ để không lệch tông) */
 .level-badge:is([data-nf-realm="radiant"], [data-nf-realm="celestial"], [data-nf-realm="nebula"], [data-nf-realm="cosmic"], [data-nf-realm="royal"], [data-nf-realm="divine"], [data-nf-realm="eternal"], [data-nf-realm="transcendent"]) {
-  border: 2px solid transparent; animation: none;
+  border: 2px solid transparent;
   background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--grad-primary-vivid) border-box;
 }
-.level-badge:is([data-nf-realm="radiant"], [data-nf-realm="celestial"], [data-nf-realm="nebula"], [data-nf-realm="cosmic"], [data-nf-realm="royal"], [data-nf-realm="divine"], [data-nf-realm="eternal"], [data-nf-realm="transcendent"]) .level-badge__icon { background: var(--grad-primary-vivid); box-shadow: 0 8px 22px -6px rgba(var(--nf-glow-rgb), 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.5); animation: none; }
-.level-badge:is([data-nf-realm="radiant"], [data-nf-realm="celestial"], [data-nf-realm="nebula"], [data-nf-realm="cosmic"], [data-nf-realm="royal"], [data-nf-realm="divine"], [data-nf-realm="eternal"], [data-nf-realm="transcendent"]).nf-level-live .level-badge__icon { animation: nfLevelIconPop 650ms cubic-bezier(0.22, 1.6, 0.35, 1) both; }
+.level-badge:is([data-nf-realm="radiant"], [data-nf-realm="celestial"], [data-nf-realm="nebula"], [data-nf-realm="cosmic"], [data-nf-realm="royal"], [data-nf-realm="divine"], [data-nf-realm="eternal"], [data-nf-realm="transcendent"]) .level-badge__icon { background: var(--grad-primary-vivid); box-shadow: 0 8px 22px -6px rgba(var(--nf-glow-rgb), 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
 .level-badge:is([data-nf-realm="radiant"], [data-nf-realm="celestial"], [data-nf-realm="nebula"], [data-nf-realm="cosmic"], [data-nf-realm="royal"], [data-nf-realm="divine"], [data-nf-realm="eternal"], [data-nf-realm="transcendent"]) .level-badge__level { color: var(--primary-600); }
-.level-badge:is([data-nf-realm="radiant"], [data-nf-realm="celestial"], [data-nf-realm="nebula"], [data-nf-realm="cosmic"], [data-nf-realm="royal"], [data-nf-realm="divine"], [data-nf-realm="eternal"], [data-nf-realm="transcendent"]) .level-badge__icon i { animation: nfFloat 3s ease-in-out infinite; }
-/* Cấp cao: viền gradient xoay (chỉ xoay góc gradient — chữ bên trong KHÔNG đổi màu) */
-.level-badge[data-nf-realm="cosmic"], .level-badge[data-nf-realm="royal"], .level-badge[data-nf-realm="divine"],
-.level-badge[data-nf-realm="eternal"], .level-badge[data-nf-realm="transcendent"] {
-  background: linear-gradient(var(--panel), var(--panel)) padding-box, conic-gradient(from var(--nf-ang), var(--nf-g1), var(--nf-g2), var(--nf-g3), var(--nf-s3), var(--nf-g1)) border-box;
-  animation: nfSpinAng 6s linear infinite;
-}
-.level-badge[data-nf-realm="eternal"], .level-badge[data-nf-realm="transcendent"] { animation-duration: 4s; }
 
 /* --------------------------------------------------------------------------
-   7. LỚP LẤP LÁNH · AURORA · SAO BĂNG (do js/fx.js tạo)
+   7. NỔ SAO KHI BẤM (js/fx.js) — hình dạng từng giao diện nằm trong looks.css
    -------------------------------------------------------------------------- */
-#nf-sparkles { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; contain: strict; }
-html[data-nf-route="camera"] #nf-sparkles { display: none; }
-.nf-spark {
-  position: absolute; left: var(--x); top: var(--y); width: var(--s); height: var(--s); opacity: 0;
-  background: radial-gradient(circle, #fff 0 16%, var(--c) 17% 46%, transparent 74%);
-  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
-  animation: nfSpark var(--d) ease-in-out var(--dl) infinite;
-  will-change: transform, opacity;
-}
-
-#nf-sparkles.is-paused *, #nf-aurora.is-paused * { animation-play-state: paused !important; }
-
-#nf-aurora { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; contain: strict; }
-.nf-aurora__blob { position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; opacity: 0; will-change: transform; }
-.nf-aurora__blob--a { left: -25vmax; top: -30vmax; background: radial-gradient(circle, rgba(var(--nf-glow-rgb), 0.34), transparent 65%); animation: nfAuroraA 18s ease-in-out infinite; }
-.nf-aurora__blob--b { right: -28vmax; top: 10vmax; background: radial-gradient(circle, rgba(var(--nf-glow2-rgb), 0.28), transparent 65%); animation: nfAuroraB 22s ease-in-out infinite; }
-html[data-nf-power="1"] .nf-aurora__blob, html[data-nf-power="2"] .nf-aurora__blob, html[data-nf-power="3"] .nf-aurora__blob { display: none; }
-html:not([data-nf-power="1"]):not([data-nf-power="2"]):not([data-nf-power="3"]) .nf-aurora__blob { opacity: 1; }
-
-.nf-shoot {
-  position: absolute; top: var(--y); left: var(--x); width: 7rem; height: 2px; opacity: 0; border-radius: 2px;
-  background: linear-gradient(90deg, transparent, #fff 60%, var(--nf-s1));
-  transform: rotate(28deg) translateX(0); animation: nfShoot var(--d) ease-in var(--dl) infinite; will-change: transform, opacity;
-}
-
-/* Nổ sao khi bấm (js/fx.js) */
 .nf-burst { position: fixed; z-index: 400; width: 0; height: 0; pointer-events: none; }
 .nf-burst i {
   position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);

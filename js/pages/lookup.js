@@ -63,7 +63,7 @@ const NF_PageLookup = (() => {
                 autocomplete="off"
               />
               <button type="submit" class="search-bar__btn" id="btn-submit-search">
-                <i class="fa-solid fa-sparkles"></i> Tra cứu
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Tra cứu
               </button>
             </form>
 
@@ -318,7 +318,7 @@ const NF_PageLookup = (() => {
     const badgeText = isDb
       ? (data.advice ? 'Dữ liệu chuẩn + nhận xét AI' : 'Dữ liệu chuẩn')
       : 'Dữ liệu Gemini AI';
-    const badgeIcon = isDb && !data.advice ? 'fa-circle-check' : 'fa-sparkles';
+    const badgeIcon = isDb && !data.advice ? 'fa-circle-check' : 'fa-wand-magic-sparkles';
     const fiberText = (data.fiber === null || data.fiber === undefined) ? '—' : `${n(data.fiber)}g`;
     const vit = Array.isArray(data.vitamins) ? data.vitamins : [];
     const min = Array.isArray(data.minerals) ? data.minerals : [];

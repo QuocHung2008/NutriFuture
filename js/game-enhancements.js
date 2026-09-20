@@ -21,16 +21,17 @@
   const PREVIEW_MS = 5000;
 
   // minLevel: cấp cần đạt để mở khóa (đã rút ngắn: 9 giao diện trong 9 cấp đầu, trước đây cần tới cấp 25)
+  // Mỗi giao diện có "chữ ký" riêng về nền, hạt chuyển động, thẻ, nút, huy hiệu (css/looks.css + js/fx.js).
   const LOOKS = [
-    { id: 'fresh',        name: 'Khởi Đầu Xanh', minLevel: 1, swatch: ['#054fd4', '#1a96ff', '#60d7ff'], dark: false },
-    { id: 'radiant',      name: 'Rạng Đông',     minLevel: 2, swatch: ['#0757dc', '#6d4cff', '#ff5fb3'], dark: false },
-    { id: 'celestial',    name: 'Thiên Lam',     minLevel: 3, swatch: ['#0a55dd', '#1fa8ff', '#4df0ff'], dark: false },
-    { id: 'nebula',       name: 'Tinh Vân',      minLevel: 4, swatch: ['#304be8', '#8a45f5', '#ef58ba'], dark: false },
-    { id: 'cosmic',       name: 'Vũ Trụ',        minLevel: 5, swatch: ['#183bc9', '#604dff', '#18cfff'], dark: false },
-    { id: 'royal',        name: 'Hoàng Kim',     minLevel: 6, swatch: ['#3f2fd0', '#8a4ff0', '#e58f0a'], dark: false },
-    { id: 'divine',       name: 'Thần Quang',    minLevel: 7, swatch: ['#5d34e6', '#a95cff', '#ffcf55'], dark: true },
-    { id: 'eternal',      name: 'Vĩnh Hằng',     minLevel: 8, swatch: ['#0b7cf0', '#7a5cff', '#ff5fd0'], dark: true },
-    { id: 'transcendent', name: 'Siêu Việt',     minLevel: 9, swatch: ['#22d3ee', '#a05cff', '#ff6bb5'], dark: true },
+    { id: 'fresh',        name: 'Khởi Đầu Xanh',      minLevel: 1, swatch: ['#054fd4', '#0f6fe6', '#1a96ff'], dark: false, desc: 'Bong bóng nhẹ nổi lên' },
+    { id: 'radiant',      name: 'Rạng Đông',          minLevel: 2, swatch: ['#f59e0b', '#ff5fb3', '#6d4cff'], dark: false, desc: 'Tia nắng ban mai' },
+    { id: 'celestial',    name: 'Thiên Lam',          minLevel: 3, swatch: ['#0a55dd', '#0879c4', '#4df0ff'], dark: false, desc: 'Mây trôi, sóng nước' },
+    { id: 'nebula',       name: 'Cực Quang',          minLevel: 4, swatch: ['#304be8', '#8a45f5', '#ef58ba'], dark: false, desc: 'Dải sáng bảy sắc' },
+    { id: 'cosmic',       name: 'Hành Tinh',          minLevel: 5, swatch: ['#183bc9', '#604dff', '#18cfff'], dark: false, desc: 'Quỹ đạo & màn hình HUD' },
+    { id: 'royal',        name: 'Hoàng Kim',          minLevel: 6, swatch: ['#3f2fd0', '#8a4ff0', '#e58f0a'], dark: false, desc: 'Bụi vàng rơi, khung son' },
+    { id: 'divine',       name: 'Thần Quang',         minLevel: 7, swatch: ['#5d34e6', '#8a4cf0', '#ffcf55'], dark: true,  desc: 'Thánh quang, lông vũ' },
+    { id: 'eternal',      name: 'Vĩnh Hằng',          minLevel: 8, swatch: ['#a3160c', '#d4400a', '#ffb020'], dark: true,  desc: 'Lửa bất diệt' },
+    { id: 'transcendent', name: 'Chư Thiên Tinh Đấu', minLevel: 9, swatch: ['#22d3ee', '#a05cff', '#ff6bb5'], dark: true,  desc: 'Ngân hà · Bắc Đẩu · sao băng' },
   ];
   const LOOK_BY_ID = LOOKS.reduce((m, l) => { m[l.id] = l; return m; }, {});
   // Biểu tượng chỉ dùng cho các cấp mở rộng (từ cấp 8); cấp 1–7 dùng biểu tượng gốc trong game-engine.js.
@@ -182,7 +183,7 @@
     const choice = readChoice();
     const active = effectiveRealm(level, true);
     return LOOKS.map((l, i) => ({
-      id: l.id, name: l.name, minLevel: l.minLevel, swatch: l.swatch, dark: l.dark, power: i + 1,
+      id: l.id, name: l.name, desc: l.desc, minLevel: l.minLevel, swatch: l.swatch, dark: l.dark, power: i + 1,
       unlocked: level >= l.minLevel,
       active: l.id === active,
       auto: choice === 'auto',

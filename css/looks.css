@@ -1,0 +1,443 @@
+/* ==========================================================================
+   NutriFuture — LOOKS: mỗi cấp độ một giao diện RIÊNG, khác hoàn toàn các cấp khác
+   --------------------------------------------------------------------------
+   Nạp sau css/main.css và css/level-fx-add.css (bảng màu + phần dùng chung nằm ở đó).
+   Ở đây là "chữ ký" của từng giao diện: cảnh nền, hạt chuyển động, kiểu thẻ, nút,
+   thanh tiến độ, tiêu đề, huy hiệu cấp, hiệu ứng khi bấm. Phần tử động do js/fx.js dựng.
+
+     1 fresh      Khởi Đầu Xanh       bong bóng nổi lên · phẳng, sạch
+     2 radiant    Rạng Đông           tia nắng ban mai xoay · vạch bình minh
+     3 celestial  Thiên Lam           mây trôi, sóng nước · thẻ kính mờ, nút bóng nước
+     4 nebula     Cực Quang           dải cực quang đung đưa · viền ánh ngọc
+     5 cosmic     Hành Tinh           hành tinh, quỹ đạo, tia quét HUD · thẻ kỹ thuật
+     6 royal      Hoàng Kim           bụi vàng rơi · khung vàng kép, chữ có chân
+     7 divine     Thần Quang          tia thánh quang, hào quang · lông vũ & quầng sáng
+     8 eternal    Vĩnh Hằng           lửa bập bùng, tàn lửa bay lên · than hồng
+     9 transcendent  CHƯ THIÊN TINH ĐẤU  bầu trời sao xoay, Ngân Hà, 2 thiên hà, Bắc Đẩu/Nam Đẩu/Tử Vi,
+                                        sao băng, sao chổi, siêu tân tinh
+
+   An toàn: hiệu ứng lặp chỉ dùng transform/opacity · mọi thứ tắt khi "Reduce motion"
+   (cảnh nền vẫn hiện TĨNH) · không phần tử nào nhận chuột · nút/thanh tiến độ cắt (overflow) vệt sáng.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   A. LỚP DÙNG CHUNG
+   -------------------------------------------------------------------------- */
+#nf-scene, #nf-sparkles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; contain: strict; }
+#nf-scene { z-index: -1; }
+#nf-sparkles { z-index: 2; }
+#nf-scene *, #nf-sparkles * { pointer-events: none; }
+html[data-nf-route="camera"] #nf-scene, html[data-nf-route="camera"] #nf-sparkles { display: none; }
+#nf-scene.is-paused *, #nf-sparkles.is-paused * { animation-play-state: paused !important; }
+
+.nf-p { position: absolute; left: var(--x); width: var(--s); height: var(--s); opacity: 0; will-change: transform, opacity; }
+
+@keyframes nfsSpin { to { transform: rotate(360deg); } }
+@keyframes nfsSweep { 0%, 52%, 100% { transform: translateX(-130%); } 76% { transform: translateX(130%); } }
+@keyframes nfsFlow { to { background-position: 400px 0; } }
+@keyframes nfsFlowY { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes nfsPulse { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.14); opacity: 1; } }
+@keyframes nfsSway { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
+@keyframes nfsRipple { 0% { transform: scale(1); opacity: 0.75; } 100% { transform: scale(1.4); opacity: 0; } }
+@keyframes nfsBlink { 0%, 49% { opacity: 0; } 50%, 100% { opacity: var(--o, 1); } }
+@keyframes nfsShock { 0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0.9; } 100% { transform: translate(-50%, -50%) scale(5); opacity: 0; } }
+
+/* Hình dạng "ngôi sao 4 cánh" dùng cho hạt & tia nổ */
+.p-star, .p-glint { top: var(--y); }
+.p-star {
+  background: radial-gradient(circle, #fff 0 16%, var(--c) 17% 46%, transparent 74%);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  animation: nfSpark var(--d) ease-in-out var(--dl) infinite;
+}
+
+/* ==========================================================================
+   1 · FRESH — Khởi Đầu Xanh · bong bóng nổi lên, phẳng & sạch
+   ========================================================================== */
+html[data-nf-realm="fresh"]:not([data-theme="dark"]) body {
+  background-image: radial-gradient(circle at 12% -10%, rgba(26, 150, 255, 0.16), transparent 42%), radial-gradient(circle at 100% 0, rgba(18, 183, 106, 0.10), transparent 40%);
+}
+.nfs-bubble {
+  position: absolute; left: var(--x); bottom: calc(var(--s) * -1 - 12px); width: var(--s); height: var(--s); border-radius: 50%;
+  border: 1.5px solid rgba(26, 150, 255, 0.42);
+  background: radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.95) 0 12%, rgba(26, 150, 255, 0.10) 44%, rgba(26, 150, 255, 0.04));
+  animation: nfsRise var(--d) linear var(--dl) infinite; will-change: transform;
+}
+@keyframes nfsRise { 0% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(var(--sw), -55vh, 0); } 100% { transform: translate3d(0, -118vh, 0); } }
+html[data-theme="dark"][data-nf-realm="fresh"] .nfs-bubble { border-color: rgba(120, 190, 255, 0.5); background: radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.5) 0 12%, rgba(26, 150, 255, 0.12) 44%, transparent); }
+html[data-nf-realm="fresh"] .level-badge__icon i { animation: nfsSway 3.4s ease-in-out infinite; transform-origin: 50% 90%; }
+.nf-burst[data-realm="fresh"] i { clip-path: none; border-radius: 50%; border: 1.5px solid rgba(26, 150, 255, 0.6); background: radial-gradient(circle at 30% 28%, #fff 0 14%, rgba(26, 150, 255, 0.16) 52%, transparent 74%); }
+
+/* ==========================================================================
+   2 · RADIANT — Rạng Đông · tia nắng ban mai xoay chậm, vạch bình minh
+   ========================================================================== */
+html[data-nf-realm="radiant"]:not([data-theme="dark"]) body {
+  background-image: radial-gradient(circle at 0 0, rgba(255, 190, 110, 0.42), transparent 46%), radial-gradient(circle at 100% 0, rgba(255, 120, 180, 0.24), transparent 44%), linear-gradient(180deg, transparent 62%, rgba(255, 150, 120, 0.16));
+}
+.nfs-sun {
+  position: absolute; left: -52vmax; top: -52vmax; width: 104vmax; height: 104vmax; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 176, 80, 0.36) 0 5deg, transparent 5deg 15deg);
+  -webkit-mask: radial-gradient(circle, #000 0 12%, transparent 66%); mask: radial-gradient(circle, #000 0 12%, transparent 66%);
+  animation: nfsSpin 120s linear infinite; will-change: transform;
+}
+.nfs-sun-core { position: absolute; left: -16vmax; top: -16vmax; width: 32vmax; height: 32vmax; border-radius: 50%; background: radial-gradient(circle, rgba(255, 224, 150, 0.95), rgba(255, 170, 90, 0.5) 40%, transparent 70%); animation: nfsPulse 6s ease-in-out infinite; }
+.nfs-horizon { position: absolute; left: 0; right: 0; bottom: 0; height: 34vh; background: linear-gradient(to top, rgba(255, 110, 170, 0.22), rgba(255, 170, 90, 0.08) 55%, transparent); }
+html[data-theme="dark"][data-nf-realm="radiant"] .nfs-sun { opacity: 0.7; }
+/* hạt: tia lửa bình minh bay lên */
+.p-ray { top: var(--y); background: radial-gradient(circle, #fff 0 20%, var(--c) 21% 56%, transparent 74%); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); animation: nfsRay var(--d) ease-out var(--dl) infinite; }
+@keyframes nfsRay { 0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.3) rotate(0); } 25% { opacity: var(--o); } 100% { opacity: 0; transform: translate3d(var(--sw), -90px, 0) scale(1.1) rotate(60deg); } }
+/* thẻ: vạch bình minh ở mép trên */
+html[data-nf-realm="radiant"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass) { box-shadow: inset 0 4px 0 #ff9a3d, inset 0 5px 0 rgba(255, 255, 255, 0.5), 0 12px 30px -16px rgba(var(--nf-shadow-rgb), 0.34); }
+html[data-nf-realm="radiant"] .card--glass { box-shadow: inset 0 4px 0 rgba(255, 154, 61, 0.9), 0 22px 50px -22px rgba(var(--nf-glow-rgb), 0.6); }
+/* nút: ánh sáng bình minh quét qua */
+html[data-nf-realm="radiant"] :is(.btn--primary, .search-bar__btn)::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; background: linear-gradient(115deg, transparent 25%, rgba(255, 255, 255, 0.55) 45%, transparent 65%); transform: translateX(-130%); animation: nfsSweep 3.8s ease-in-out infinite; }
+html[data-nf-realm="radiant"] .page-title { background: linear-gradient(95deg, #b93a06 0%, #db2777 55%, #7c3aed 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #b93a06; }
+html[data-nf-realm="radiant"][data-theme="dark"] .page-title { background: linear-gradient(95deg, #ffb27a 0%, #ff8fc4 55%, #c4a8ff 100%); -webkit-background-clip: text; background-clip: text; }
+html[data-nf-realm="radiant"] .progress-bar__fill::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 25%, rgba(255, 255, 255, 0.7) 50%, transparent 75%); transform: translateX(-120%); animation: nfsSweep 3s ease-in-out infinite; }
+/* huy hiệu: vòng tia nắng xoay quanh icon */
+html[data-nf-realm="radiant"] .level-badge__icon::before {
+  content: ''; position: absolute; inset: -7px; z-index: -1; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(255, 176, 60, 0.95) 0 8deg, transparent 8deg 24deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 60%, #000 62%); mask: radial-gradient(circle, transparent 0 60%, #000 62%);
+  animation: nfsSpin 12s linear infinite;
+}
+.nf-burst[data-realm="radiant"] i { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); background: radial-gradient(circle, #fff 0 22%, var(--c) 23% 62%, transparent 76%); }
+
+/* ==========================================================================
+   3 · CELESTIAL — Thiên Lam · mây trôi, sóng nước · thẻ kính mờ, nút bóng nước
+   ========================================================================== */
+html[data-nf-realm="celestial"] { --radius-lg: 1.35rem; --radius-xl: 2rem; --radius-2xl: 2.4rem; }
+html[data-nf-realm="celestial"]:not([data-theme="dark"]) { --paper: #eaf7ff; --line: rgba(20, 100, 170, 0.14); --line-strong: rgba(20, 110, 180, 0.26); }
+html[data-nf-realm="celestial"]:not([data-theme="dark"]) body { background-image: linear-gradient(180deg, #cfeeff 0, #e6f7ff 34%, #f4fbff 100%); }
+.nfs-cloud {
+  position: absolute; top: var(--y); left: calc(var(--w) * -1); width: var(--w); height: calc(var(--w) * 0.3); opacity: var(--o);
+  background:
+    radial-gradient(ellipse 30% 56% at 24% 62%, #fff 0, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(ellipse 34% 72% at 50% 46%, #fff 0, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(ellipse 28% 52% at 77% 62%, #fff 0, rgba(255, 255, 255, 0) 70%);
+  animation: nfsDrift var(--d) linear var(--dl) infinite; will-change: transform;
+}
+@keyframes nfsDrift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(calc(100vw + var(--w) * 2), 0, 0); } }
+.nfs-wave {
+  position: absolute; left: -90px; right: -90px; bottom: 0; height: 56px; will-change: transform;
+  background: radial-gradient(circle at 45px 0, transparent 0 28px, rgba(10, 140, 230, 0.20) 29px) 0 0 / 90px 56px repeat-x;
+  animation: nfsWave 7s linear infinite;
+}
+.nfs-wave--b { bottom: -12px; opacity: 0.8; background-image: radial-gradient(circle at 45px 0, transparent 0 28px, rgba(77, 240, 255, 0.30) 29px); animation-duration: 11s; animation-direction: reverse; }
+@keyframes nfsWave { to { transform: translateX(90px); } }
+html[data-theme="dark"][data-nf-realm="celestial"] .nfs-cloud { opacity: 0.10; }
+html[data-theme="dark"][data-nf-realm="celestial"] .nfs-wave { opacity: 0.5; }
+.p-glint { background: radial-gradient(circle, #fff 0 22%, var(--c) 23% 50%, transparent 72%); border-radius: 50%; animation: nfsGlint var(--d) ease-in-out var(--dl) infinite; }
+@keyframes nfsGlint { 0%, 100% { opacity: 0; transform: scale(0.2); } 50% { opacity: var(--o); transform: scale(1); } }
+/* thẻ: kính mờ trong suốt */
+html[data-nf-realm="celestial"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass) {
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 14px 34px -16px rgba(10, 110, 190, 0.35);
+}
+html[data-nf-realm="celestial"] .card--glass { background: linear-gradient(color-mix(in srgb, var(--panel) 93%, transparent), color-mix(in srgb, var(--panel) 93%, transparent)) padding-box, var(--grad-primary-vivid) border-box; }
+html[data-nf-realm="celestial"][data-theme="dark"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass) { border-color: rgba(255, 255, 255, 0.14); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 14px 34px -16px #000; }
+/* nút: bóng nước (gloss) — không quét sáng */
+html[data-nf-realm="celestial"] :is(.btn--primary, .search-bar__btn) { box-shadow: 0 12px 26px -10px rgba(var(--nf-glow-rgb), 0.8), inset 0 -8px 14px -6px rgba(0, 60, 120, 0.35), inset 0 10px 14px -8px rgba(255, 255, 255, 0.65); }
+html[data-nf-realm="celestial"] :is(.btn--primary, .search-bar__btn)::after { content: ''; position: absolute; left: 8%; right: 8%; top: 3px; height: 44%; border-radius: 999px; pointer-events: none; z-index: 0; background: linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0)); }
+html[data-nf-realm="celestial"] .page-title { text-shadow: 0 2px 0 rgba(255, 255, 255, 0.9), 0 8px 20px rgba(10, 120, 200, 0.25); }
+html[data-nf-realm="celestial"][data-theme="dark"] .page-title { text-shadow: 0 0 22px rgba(77, 240, 255, 0.35); }
+/* thanh tiến độ: sọc nước chảy */
+html[data-nf-realm="celestial"] .progress-bar__fill::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -28px; right: 0;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.32) 0 25%, transparent 25% 50%, rgba(255, 255, 255, 0.32) 50% 75%, transparent 75%) 0 0 / 28px 28px;
+  animation: nfsStripe 1s linear infinite;
+}
+@keyframes nfsStripe { to { transform: translateX(28px); } }
+/* huy hiệu: gợn sóng lan toả quanh icon */
+html[data-nf-realm="celestial"] .level-badge__icon::before, html[data-nf-realm="celestial"] .level-badge__icon::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; border: 2px solid rgba(31, 190, 255, 0.7); animation: nfsRipple 2.8s ease-out infinite;
+}
+html[data-nf-realm="celestial"] .level-badge__icon::after { animation-delay: 1.4s; }
+.nf-burst[data-realm="celestial"] i { clip-path: none; border-radius: 50% 50% 50% 6%; background: radial-gradient(circle at 35% 30%, #fff 0 12%, var(--c) 42%, rgba(31, 190, 255, 0.35)); }
+
+/* ==========================================================================
+   4 · NEBULA — Cực Quang · dải sáng đung đưa · viền ánh ngọc, nút chất lỏng
+   ========================================================================== */
+html[data-nf-realm="nebula"]:not([data-theme="dark"]) { --paper: #f6f1ff; --line: rgba(100, 60, 190, 0.16); --line-strong: rgba(110, 60, 200, 0.28); }
+html[data-nf-realm="nebula"]:not([data-theme="dark"]) body { background-image: radial-gradient(circle at 50% -20%, rgba(138, 69, 245, 0.20), transparent 50%); }
+.nfs-ribbon { position: absolute; top: -12vh; width: 46vmax; height: 96vh; filter: blur(30px); opacity: 0.6; transform-origin: 50% 0; will-change: transform; animation: nfsRibbon 15s ease-in-out infinite alternate; }
+.nfs-ribbon--a { left: -6vmax; background: linear-gradient(180deg, transparent 0, rgba(138, 69, 245, 0.75) 30%, rgba(239, 88, 186, 0.45) 62%, transparent 100%); }
+.nfs-ribbon--b { left: 30%; background: linear-gradient(180deg, transparent 0, rgba(38, 208, 206, 0.65) 28%, rgba(76, 141, 255, 0.4) 64%, transparent 100%); animation-duration: 19s; animation-delay: -6s; }
+.nfs-ribbon--c { right: -8vmax; background: linear-gradient(180deg, transparent 0, rgba(239, 88, 186, 0.7) 32%, rgba(138, 69, 245, 0.4) 66%, transparent 100%); animation-duration: 17s; animation-delay: -3s; }
+@keyframes nfsRibbon { 0% { transform: skewX(-14deg) translate3d(-4vw, 0, 0) scaleY(0.92); } 100% { transform: skewX(12deg) translate3d(5vw, 0, 0) scaleY(1.12); } }
+html[data-theme="dark"][data-nf-realm="nebula"] .nfs-ribbon { opacity: 0.9; }
+.p-dust { top: var(--y); width: calc(var(--s) * 0.4); height: calc(var(--s) * 0.4); border-radius: 50%; background: var(--c); box-shadow: 0 0 9px 2px var(--c); animation: nfsDust var(--d) ease-in-out var(--dl) infinite; }
+@keyframes nfsDust { 0% { opacity: 0; transform: translate3d(0, 0, 0); } 30% { opacity: var(--o); } 100% { opacity: 0; transform: translate3d(var(--sw), -48px, 0); } }
+/* thẻ: viền ánh ngọc (iridescent) */
+html[data-nf-realm="nebula"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass) {
+  border: 1.5px solid transparent;
+  background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(135deg, #8a45f5, #ef58ba 50%, #38d4e8) border-box;
+  box-shadow: 0 14px 34px -18px rgba(138, 69, 245, 0.5);
+}
+/* nút & tiến độ: gradient chất lỏng chảy */
+html[data-nf-realm="nebula"] :is(.btn--primary, .search-bar__btn), html[data-nf-realm="nebula"] .progress-bar__fill { background-image: linear-gradient(115deg, #304be8, #8a45f5, #ef58ba, #8a45f5, #304be8); background-size: 250% 100%; animation: nfsFlowY 6s ease-in-out infinite; }
+html[data-nf-realm="nebula"] .page-title { background: linear-gradient(95deg, #5a21ad, #8a45f5 45%, #d93fa3); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #5a21ad; }
+html[data-nf-realm="nebula"][data-theme="dark"] .page-title { background: linear-gradient(95deg, #c4a8ff, #ffa2e0); -webkit-background-clip: text; background-clip: text; }
+/* huy hiệu: viền xoáy chuyển màu */
+html[data-nf-realm="nebula"] .level-badge { background: linear-gradient(var(--panel), var(--panel)) padding-box, conic-gradient(from var(--nf-ang), #304be8, #8a45f5, #ef58ba, #38d4e8, #304be8) border-box; animation: nfSpinAng 6s linear infinite; }
+.nf-burst[data-realm="nebula"] i { clip-path: none; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px 3px var(--c); opacity: 0.9; }
+
+/* ==========================================================================
+   5 · COSMIC — Hành Tinh · hành tinh + quỹ đạo + tia quét HUD · thẻ kỹ thuật góc vuông
+   ========================================================================== */
+html[data-nf-realm="cosmic"] { --radius-sm: 0.25rem; --radius-md: 0.35rem; --radius-lg: 0.5rem; --radius-xl: 0.65rem; --radius-2xl: 0.85rem; --radius-3xl: 1rem; }
+html[data-nf-realm="cosmic"] :is(.section-label, .card__label, .page__eyebrow, .stat-card__label) { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0.14em; }
+html[data-nf-realm="cosmic"]:not([data-theme="dark"]) body {
+  background-image: linear-gradient(rgba(60, 80, 220, 0.075) 1px, transparent 1px), linear-gradient(90deg, rgba(60, 80, 220, 0.075) 1px, transparent 1px), radial-gradient(circle at 100% 0, rgba(24, 207, 255, 0.20), transparent 40%);
+  background-size: 32px 32px, 32px 32px, auto;
+}
+html[data-nf-realm="cosmic"][data-theme="dark"] body {
+  background-image: linear-gradient(rgba(120, 140, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(120, 140, 255, 0.07) 1px, transparent 1px), radial-gradient(circle at 100% 0, rgba(24, 207, 255, 0.18), transparent 40%);
+  background-size: 32px 32px, 32px 32px, auto;
+}
+.nfs-planet {
+  position: absolute; right: -6vmax; top: -6vmax; width: 30vmax; height: 30vmax; border-radius: 50%; opacity: 0.6;
+  background: radial-gradient(circle at 32% 30%, #9aa8ff, #4c5cff 46%, #1a2199 78%, #0d1170);
+  box-shadow: inset -3vmax -2vmax 5vmax rgba(0, 0, 40, 0.5), 0 0 6vmax rgba(76, 92, 255, 0.35);
+}
+.nfs-planet::after { content: ''; position: absolute; left: -32%; right: -32%; top: 36%; bottom: 36%; border: 0.55vmax solid rgba(24, 207, 255, 0.6); border-radius: 50%; transform: rotate(-18deg); box-shadow: 0 0 2vmax rgba(24, 207, 255, 0.4); }
+.nfs-orbit { position: absolute; right: -13vmax; top: -13vmax; width: 44vmax; height: 44vmax; border-radius: 50%; border: 1px dashed rgba(24, 207, 255, 0.4); animation: nfsSpin 26s linear infinite; will-change: transform; }
+.nfs-moon { position: absolute; left: 50%; top: -1.2vmax; width: 2.4vmax; height: 2.4vmax; margin-left: -1.2vmax; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #a9b8ff 55%, #4c5cff); box-shadow: 0 0 1.4vmax rgba(169, 184, 255, 0.8); }
+.nfs-scan { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: linear-gradient(90deg, transparent, rgba(24, 207, 255, 0.8), transparent); box-shadow: 0 0 16px 2px rgba(24, 207, 255, 0.5); animation: nfsScan 9s linear infinite; will-change: transform, opacity; }
+@keyframes nfsScan { 0% { transform: translateY(-6px); opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { transform: translateY(100vh); opacity: 0; } }
+.p-blip { top: var(--y); width: calc(var(--s) * 0.4); height: calc(var(--s) * 0.4); background: var(--c); box-shadow: 0 0 6px var(--c); animation: nfsBlink var(--d) steps(1) var(--dl) infinite; }
+/* thẻ: 4 góc ngoặc HUD */
+html[data-nf-realm="cosmic"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass) {
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(var(--nf-g2), var(--nf-g2)), linear-gradient(var(--nf-g2), var(--nf-g2)),
+    linear-gradient(var(--nf-g2), var(--nf-g2)), linear-gradient(var(--nf-g2), var(--nf-g2)),
+    linear-gradient(var(--nf-g2), var(--nf-g2)), linear-gradient(var(--nf-g2), var(--nf-g2)),
+    linear-gradient(var(--nf-g2), var(--nf-g2)), linear-gradient(var(--nf-g2), var(--nf-g2));
+  background-repeat: no-repeat;
+  background-size: 18px 2px, 2px 18px, 18px 2px, 2px 18px, 18px 2px, 2px 18px, 18px 2px, 2px 18px;
+  background-position: 0 0, 0 0, 100% 0, 100% 0, 0 100%, 0 100%, 100% 100%, 100% 100%;
+  box-shadow: 0 0 0 1px rgba(var(--nf-glow-rgb), 0.08), 0 12px 30px -16px rgba(var(--nf-shadow-rgb), 0.34);
+}
+/* nút: chữ nhật bo nhẹ + thanh quét dọc */
+html[data-nf-realm="cosmic"] :is(.btn--primary, .search-bar__btn) { border-radius: 0.5rem; }
+html[data-nf-realm="cosmic"] .search-bar .search-bar__input { border-radius: 0.65rem; }
+html[data-nf-realm="cosmic"] :is(.btn--primary, .search-bar__btn)::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 22%; pointer-events: none; z-index: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent); transform: translateX(-100%); animation: nfsScanBtn 2.6s linear infinite; }
+@keyframes nfsScanBtn { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(560%); } }
+/* thanh tiến độ: các đốt rời như đồng hồ đo */
+html[data-nf-realm="cosmic"] .progress-bar { border-radius: 3px; }
+html[data-nf-realm="cosmic"] .progress-bar__fill { border-radius: 0; -webkit-mask: repeating-linear-gradient(90deg, #000 0 9px, transparent 9px 12px); mask: repeating-linear-gradient(90deg, #000 0 9px, transparent 9px 12px); }
+/* huy hiệu: vành quỹ đạo + vệ tinh */
+html[data-nf-realm="cosmic"] .level-badge__icon::before { content: ''; position: absolute; inset: -7px; z-index: -1; border-radius: 50%; border: 1.5px dashed rgba(24, 207, 255, 0.75); animation: nfsSpin 9s linear infinite; }
+html[data-nf-realm="cosmic"] .level-badge__icon::after { content: ''; position: absolute; inset: -7px; z-index: -1; border-radius: 50%; background: radial-gradient(circle at 50% 0, #18cfff 0 3.5px, transparent 4.5px); animation: nfsSpin 4.5s linear infinite; }
+.nf-burst[data-realm="cosmic"] i { clip-path: none; border-radius: 1px; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.nf-shock { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--nf-g2); animation: nfsShock 0.75s ease-out forwards; }
+
+/* ==========================================================================
+   6 · ROYAL — Hoàng Kim · bụi vàng rơi · khung vàng kép, chữ có chân
+   ========================================================================== */
+html[data-nf-realm="royal"] { --font-display: Georgia, "Times New Roman", "Noto Serif", serif; --radius-lg: 0.7rem; --radius-xl: 0.9rem; --radius-2xl: 1.1rem; }
+html[data-nf-realm="royal"]:not([data-theme="dark"]) body {
+  background-image: radial-gradient(circle at 50% -10%, rgba(255, 214, 120, 0.36), transparent 46%), radial-gradient(circle, rgba(200, 150, 40, 0.11) 1.2px, transparent 1.7px);
+  background-size: auto, 24px 24px;
+}
+.nfs-beam { position: absolute; top: -20vh; left: 12%; width: 22vmax; height: 150vh; background: linear-gradient(90deg, transparent, rgba(255, 214, 110, 0.30), transparent); transform: rotate(24deg); transform-origin: 50% 0; animation: nfsBeam 16s ease-in-out infinite alternate; will-change: transform; }
+.nfs-beam--b { left: 60%; width: 14vmax; animation-delay: -7s; animation-duration: 21s; }
+@keyframes nfsBeam { from { transform: translateX(-8vmax) rotate(24deg); } to { transform: translateX(14vmax) rotate(24deg); } }
+.nfs-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 58%, rgba(120, 80, 10, 0.10)); }
+html[data-theme="dark"][data-nf-realm="royal"] .nfs-beam { opacity: 0.55; }
+.p-gold { top: -24px; height: calc(var(--s) * 1.4); background: linear-gradient(135deg, #fff6bf, #f0b21f 55%, #9a6100); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); animation: nfsFall calc(var(--d) * 2.6) linear var(--dl) infinite; }
+@keyframes nfsFall { 0% { opacity: 0; transform: translate3d(0, -4vh, 0) rotate(0); } 8% { opacity: var(--o); } 92% { opacity: var(--o); } 100% { opacity: 0; transform: translate3d(var(--sw), 108vh, 0) rotate(540deg); } }
+/* thẻ: khung vàng kép */
+html[data-nf-realm="royal"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass) {
+  border: 1px solid rgba(180, 124, 20, 0.6);
+  box-shadow: inset 0 0 0 4px var(--panel), inset 0 0 0 5px rgba(196, 140, 30, 0.5), 0 14px 32px -18px rgba(120, 80, 10, 0.4);
+}
+html[data-nf-realm="royal"] .card--glass {
+  background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(135deg, #f6d36b, #b87a0a 30%, #f6d36b 55%, #8a4ff0) border-box;
+  box-shadow: inset 0 0 0 4px var(--panel), inset 0 0 0 5px rgba(196, 140, 30, 0.5), 0 22px 50px -22px rgba(246, 174, 38, 0.55);
+}
+/* nút: lá vàng ánh chớp */
+html[data-nf-realm="royal"] :is(.btn--primary, .search-bar__btn)::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; background: linear-gradient(105deg, transparent 38%, rgba(255, 246, 200, 0.75) 48%, transparent 58%); transform: translateX(-130%); animation: nfsSweep 3.4s ease-in-out infinite; }
+html[data-nf-realm="royal"] .page-title { background: linear-gradient(100deg, #5c3d00, #a86a00 40%, #b87400 50%, #a86a00 60%, #5c3d00); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #5c3d00; letter-spacing: -0.01em; }
+html[data-nf-realm="royal"][data-theme="dark"] .page-title { background: linear-gradient(100deg, #f3d488, #ffe9a8 50%, #e0a93a); -webkit-background-clip: text; background-clip: text; }
+html[data-nf-realm="royal"] .progress-bar__fill { background-image: linear-gradient(90deg, #8a5a00, #e5a91a 45%, #fff0a8 60%, #e5a91a 75%, #b87a0a); }
+html[data-nf-realm="royal"] .progress-bar__fill::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.85) 50%, transparent 70%); transform: translateX(-120%); animation: nfsSweep 2.8s ease-in-out infinite; }
+/* huy hiệu: khung vàng + tia lấp lánh trên vương miện */
+html[data-nf-realm="royal"] .level-badge { background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(135deg, #f6d36b, #b87a0a 35%, #f6d36b 60%, #8a4ff0) border-box; box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4px rgba(196, 140, 30, 0.5), 0 12px 30px -16px rgba(120, 80, 10, 0.4); }
+html[data-nf-realm="royal"] .level-badge__icon { background: linear-gradient(135deg, #7a4bd8, #c98200); }
+html[data-nf-realm="royal"] .level-badge__icon::after { content: ''; position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; background: radial-gradient(circle, #fff 0 14%, #ffd45c 15% 44%, transparent 72%); clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%); animation: nfTwinkle 2.4s ease-in-out infinite; }
+.nf-burst[data-realm="royal"] i { clip-path: none; border-radius: 50%; border: 1px solid #8a5a00; background: radial-gradient(circle at 35% 30%, #fff6bf, #f0b21f 55%, #9a6100); }
+
+/* ==========================================================================
+   7 · DIVINE — Thần Quang · tia thánh quang + hào quang · lông vũ & quầng sáng
+   ========================================================================== */
+html[data-nf-realm="divine"] { --radius-lg: 1.5rem; --radius-xl: 2.1rem; --radius-2xl: 2.5rem; }
+html[data-nf-realm="divine"] body { background-image: radial-gradient(ellipse at 50% -12%, rgba(255, 214, 120, 0.40), transparent 52%), radial-gradient(circle at 12% 84%, rgba(120, 70, 255, 0.26), transparent 46%), radial-gradient(circle at 92% 70%, rgba(255, 150, 200, 0.12), transparent 40%); }
+.nfs-godrays {
+  position: absolute; left: 50%; top: -8vh; width: 170vmax; height: 125vh; margin-left: -85vmax; transform-origin: 50% 0; will-change: transform, opacity;
+  background: repeating-conic-gradient(from -30deg at 50% 0%, rgba(255, 222, 140, 0.22) 0 3deg, transparent 3deg 11deg);
+  -webkit-mask: linear-gradient(#000, transparent 80%); mask: linear-gradient(#000, transparent 80%);
+  animation: nfsRays 18s ease-in-out infinite alternate;
+}
+@keyframes nfsRays { from { transform: rotate(-7deg); opacity: 0.55; } to { transform: rotate(7deg); opacity: 1; } }
+.nfs-halo { position: absolute; left: 50%; top: -14vmax; width: 30vmax; height: 30vmax; margin-left: -15vmax; border-radius: 50%; border: 2px solid rgba(255, 220, 130, 0.6); box-shadow: 0 0 5vmax rgba(255, 207, 85, 0.35), inset 0 0 5vmax rgba(255, 207, 85, 0.25); animation: nfsHalo 5s ease-in-out infinite; }
+.nfs-halo--b { width: 48vmax; height: 48vmax; top: -23vmax; margin-left: -24vmax; opacity: 0.5; animation-delay: -2.5s; }
+@keyframes nfsHalo { 0%, 100% { transform: scale(0.96); opacity: 0.6; } 50% { transform: scale(1.06); opacity: 1; } }
+.p-orb { bottom: -40px; width: calc(var(--s) * 1.6); height: calc(var(--s) * 1.6); border-radius: 50%; background: radial-gradient(circle, #fff 0 12%, var(--c) 30%, transparent 68%); animation: nfsOrb calc(var(--d) * 3) ease-in-out var(--dl) infinite; }
+@keyframes nfsOrb { 0% { opacity: 0; transform: translate3d(0, 0, 0); } 15% { opacity: var(--o); } 50% { transform: translate3d(var(--sw), -55vh, 0); } 100% { opacity: 0; transform: translate3d(calc(var(--sw) * -1), -112vh, 0); } }
+/* thẻ: viền vàng nhạt + vệt sáng mép trên */
+html[data-nf-realm="divine"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass) { border: 1px solid rgba(255, 214, 120, 0.45); box-shadow: 0 0 0 1px rgba(255, 214, 120, 0.08), 0 0 40px -14px rgba(255, 207, 85, 0.4), 0 14px 32px -16px #000; }
+html[data-nf-realm="divine"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass)::before { content: ''; position: absolute; left: 12%; right: 12%; top: 0; height: 1px; pointer-events: none; background: linear-gradient(90deg, transparent, rgba(255, 224, 150, 0.95), transparent); }
+html[data-nf-realm="divine"] .page-title { text-shadow: 0 0 22px rgba(255, 214, 120, 0.55), 0 0 2px rgba(255, 255, 255, 0.6); }
+/* nút: quầng sáng lan toả */
+html[data-nf-realm="divine"] :is(.btn--primary, .search-bar__btn) { animation: nfsHaloBtn 2.8s ease-out infinite; }
+@keyframes nfsHaloBtn { 0% { box-shadow: 0 0 0 0 rgba(255, 214, 120, 0.55), 0 12px 28px -10px rgba(var(--nf-glow-rgb), 0.75); } 100% { box-shadow: 0 0 0 14px rgba(255, 214, 120, 0), 0 12px 28px -10px rgba(var(--nf-glow-rgb), 0.75); } }
+html[data-nf-realm="divine"] .progress-bar__fill { background-image: linear-gradient(90deg, #8a4cf0, #ffcf55); }
+html[data-nf-realm="divine"] .progress-bar__fill::after { content: ''; position: absolute; top: -50%; bottom: -50%; right: -4px; width: 22px; border-radius: 50%; background: radial-gradient(circle, #fff, rgba(255, 220, 130, 0.7) 40%, transparent 70%); animation: nfsPulse 1.8s ease-in-out infinite; }
+/* huy hiệu: vòng hào quang trên icon */
+html[data-nf-realm="divine"] .level-badge__icon::before { content: ''; position: absolute; inset: -6px; z-index: -1; border-radius: inherit; border: 2px solid rgba(255, 220, 130, 0.85); box-shadow: 0 0 14px rgba(255, 214, 120, 0.75); animation: nfsHalo 3s ease-in-out infinite; }
+.nf-burst[data-realm="divine"] i { clip-path: none; border-radius: 50%; width: calc(var(--s) * 0.6); height: calc(var(--s) * 1.5); background: linear-gradient(#fff, var(--c)); box-shadow: 0 0 10px rgba(255, 224, 150, 0.9); }
+
+/* ==========================================================================
+   8 · ETERNAL — Vĩnh Hằng · lửa bập bùng, tàn lửa bay lên · than hồng
+   ========================================================================== */
+html[data-nf-realm="eternal"] { --radius-lg: 0.45rem; --radius-xl: 0.55rem; --radius-2xl: 0.75rem; }
+html[data-nf-realm="eternal"] body { background-image: radial-gradient(ellipse at 50% 125%, rgba(255, 90, 20, 0.36), transparent 58%), radial-gradient(circle at 0 0, rgba(160, 20, 10, 0.32), transparent 42%); }
+.nfs-heat { position: absolute; left: 0; right: 0; bottom: 0; height: 62vh; transform-origin: 50% 100%; background: linear-gradient(to top, rgba(255, 96, 20, 0.55), rgba(255, 140, 30, 0.18) 36%, transparent 76%); animation: nfsHeat 3.4s ease-in-out infinite alternate; }
+@keyframes nfsHeat { from { opacity: 0.65; transform: scaleY(0.94); } to { opacity: 1; transform: scaleY(1.06); } }
+.nfs-flame {
+  position: absolute; left: var(--x); bottom: -6vh; width: var(--w); height: var(--h); margin-left: calc(var(--w) / -2); transform-origin: 50% 100%; will-change: transform, opacity;
+  background: radial-gradient(ellipse at 50% 100%, rgba(255, 200, 60, 0.85) 0, rgba(255, 110, 20, 0.6) 35%, rgba(200, 30, 10, 0.22) 62%, transparent 76%);
+  animation: nfsFlicker var(--d) ease-in-out var(--dl) infinite alternate;
+}
+@keyframes nfsFlicker { 0% { transform: scale(0.9, 0.78) skewX(-3deg); opacity: 0.75; } 35% { transform: scale(1.04, 1.08) skewX(4deg); opacity: 1; } 70% { transform: scale(0.94, 0.9) skewX(-5deg); opacity: 0.85; } 100% { transform: scale(1.08, 1.16) skewX(2deg); opacity: 1; } }
+.p-ember { bottom: -16px; width: calc(var(--s) * 0.5); height: calc(var(--s) * 0.5); border-radius: 50%; background: radial-gradient(circle, #fff6c8, var(--c) 58%); box-shadow: 0 0 10px 2px var(--c); animation: nfsEmber calc(var(--d) * 1.8) ease-out var(--dl) infinite; }
+@keyframes nfsEmber { 0% { opacity: 0; transform: translate3d(0, 0, 0) scale(1); } 10% { opacity: 1; } 100% { opacity: 0; transform: translate3d(var(--sw), -95vh, 0) scale(0.2); } }
+/* thẻ: than hồng, viền dưới rực lửa */
+html[data-nf-realm="eternal"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass) { border: 1px solid rgba(255, 130, 50, 0.38); box-shadow: inset 0 -3px 0 rgba(255, 110, 30, 0.8), 0 0 26px -10px rgba(255, 110, 30, 0.45), 0 12px 30px -16px #000; }
+html[data-nf-realm="eternal"] .card--glass { box-shadow: inset 0 -3px 0 rgba(255, 110, 30, 0.8), 0 22px 50px -22px rgba(255, 110, 30, 0.6); }
+html[data-nf-realm="eternal"] .page-title { background: linear-gradient(180deg, #fff2c8, #ffb020 48%, #ff5a1f); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #ffb020; filter: drop-shadow(0 2px 10px rgba(255, 100, 20, 0.5)); }
+/* nút: ánh lửa chập chờn */
+html[data-nf-realm="eternal"] :is(.btn--primary, .search-bar__btn) { animation: nfsFlickBtn 1.7s ease-in-out infinite; }
+@keyframes nfsFlickBtn { 0%, 100% { filter: brightness(1); } 18% { filter: brightness(1.18); } 34% { filter: brightness(0.94); } 55% { filter: brightness(1.22); } 78% { filter: brightness(1.02); } }
+html[data-nf-realm="eternal"] .progress-bar__fill { background-image: linear-gradient(90deg, #7a0d06, #d4400a 45%, #ffb020); animation: nfsFlickBtn 1.4s ease-in-out infinite; }
+html[data-nf-realm="eternal"] .progress-bar__fill::after { content: ''; position: absolute; top: -50%; bottom: -50%; right: -6px; width: 24px; border-radius: 50%; background: radial-gradient(circle, #fff3b0, rgba(255, 140, 30, 0.7) 45%, transparent 72%); animation: nfsPulse 0.9s ease-in-out infinite; }
+/* huy hiệu: hào quang lửa sau icon */
+html[data-nf-realm="eternal"] .level-badge__icon::before { content: ''; position: absolute; inset: -10px; z-index: -1; border-radius: 50%; background: radial-gradient(circle, rgba(255, 170, 50, 0.85), rgba(255, 90, 20, 0.35) 55%, transparent 72%); animation: nfsFlick2 1.3s ease-in-out infinite alternate; }
+@keyframes nfsFlick2 { from { transform: scale(0.9); opacity: 0.7; } to { transform: scale(1.12); opacity: 1; } }
+.nf-burst[data-realm="eternal"] i { clip-path: none; border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%; background: linear-gradient(to top, var(--c), #fff3b0); box-shadow: 0 0 12px var(--c); }
+
+/* ==========================================================================
+   9 · TRANSCENDENT — CHƯ THIÊN TINH ĐẤU
+       bầu trời sao xoay 3 tầng · dải Ngân Hà · 2 thiên hà xoắn ốc nghiêng · Bắc Đẩu / Nam Đẩu / Tử Vi
+       · sao băng · sao chổi · siêu tân tinh · thẻ kính vũ trụ · chữ & nút cầu vồng
+   ========================================================================== */
+html[data-nf-realm="transcendent"] { --radius-xl: 1.6rem; }
+html[data-nf-realm="transcendent"] body {
+  background-color: #03040c;
+  background-image: radial-gradient(ellipse at 20% 8%, rgba(90, 60, 200, 0.38), transparent 52%), radial-gradient(ellipse at 88% 88%, rgba(20, 150, 190, 0.30), transparent 52%), radial-gradient(ellipse at 62% 42%, rgba(180, 60, 160, 0.18), transparent 56%);
+}
+/* — bầu trời sao: mỗi tầng xoay quanh tâm với tốc độ/chiều khác nhau (thị sai) — */
+.nfs-sky { position: absolute; left: 50%; top: 50%; width: 0; height: 0; animation: nfsSpin var(--rot) linear infinite; will-change: transform; }
+.nfs-sky--far { --rot: 900s; }
+.nfs-sky--mid { --rot: 620s; animation-direction: reverse; }
+.nfs-sky--near { --rot: 430s; }
+.nfs-stars { position: absolute; left: 0; top: 0; width: 1px; height: 1px; border-radius: 50%; animation: nfsSkyTwinkle 4s ease-in-out infinite alternate; }
+.nfs-sky--mid .nfs-stars { animation-duration: 5.6s; animation-delay: -2s; }
+.nfs-sky--near .nfs-stars { animation-duration: 3.1s; animation-delay: -1s; }
+@keyframes nfsSkyTwinkle { from { opacity: 0.55; } to { opacity: 1; } }
+/* — Ngân Hà — */
+.nfs-milky {
+  position: absolute; left: 50%; top: 50%; width: 190vmax; height: 36vmax; margin: -18vmax 0 0 -95vmax; transform: rotate(-30deg); will-change: transform;
+  background: radial-gradient(ellipse at center, rgba(200, 210, 255, 0.28), rgba(150, 120, 255, 0.13) 42%, transparent 70%);
+  animation: nfsMilky 40s ease-in-out infinite alternate;
+}
+.nfs-milky::before {
+  content: ''; position: absolute; inset: 0; opacity: 0.85;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0 0.8px, transparent 1.3px) 0 0 / 19px 17px, radial-gradient(circle, rgba(190, 210, 255, 0.65) 0 0.7px, transparent 1.2px) 7px 9px / 27px 23px;
+  -webkit-mask: radial-gradient(ellipse at center, #000 0, transparent 66%); mask: radial-gradient(ellipse at center, #000 0, transparent 66%);
+}
+@keyframes nfsMilky { from { transform: rotate(-30deg) translate3d(-3vmax, 0, 0); } to { transform: rotate(-30deg) translate3d(3vmax, 1vmax, 0); } }
+/* — 2 thiên hà xoắn ốc, nghiêng theo phối cảnh, tự quay — */
+.nfs-galaxy { position: absolute; will-change: transform; }
+.nfs-galaxy-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.nfs-galaxy--big { right: -14vmin; bottom: -10vmin; width: 90vmin; height: 90vmin; opacity: 0.8; animation: nfsGalaxyA 170s linear infinite; }
+.nfs-galaxy--small { left: -10vmin; top: 2vmin; width: 46vmin; height: 46vmin; opacity: 0.55; animation: nfsGalaxyB 230s linear infinite; }
+@keyframes nfsGalaxyA { from { transform: perspective(900px) rotateX(54deg) rotate(0); } to { transform: perspective(900px) rotateX(54deg) rotate(360deg); } }
+@keyframes nfsGalaxyB { from { transform: perspective(700px) rotateX(62deg) rotate(360deg); } to { transform: perspective(700px) rotateX(62deg) rotate(0); } }
+/* — chòm sao: nét vẽ dần rồi mờ đi, các sao nhấp nháy — */
+.nfs-const { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 4px rgba(150, 190, 255, 0.75)); }
+.nfs-cline { stroke: rgba(196, 220, 255, 0.75); stroke-width: 1.2; stroke-dasharray: 1; stroke-dashoffset: 1; fill: none; animation: nfsDraw 16s ease-in-out infinite; }
+@keyframes nfsDraw { 0% { stroke-dashoffset: 1; opacity: 0; } 12% { opacity: 1; } 30% { stroke-dashoffset: 0; } 80% { stroke-dashoffset: 0; opacity: 1; } 96%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+.nfs-cstar { fill: #fff; transform-box: fill-box; transform-origin: center; animation: nfsCstar 3s ease-in-out infinite alternate; }
+.nfs-cstar-glow { fill: rgba(160, 200, 255, 0.30); transform-box: fill-box; transform-origin: center; animation: nfsCstar 3.6s ease-in-out infinite alternate; }
+@keyframes nfsCstar { from { transform: scale(0.7); opacity: 0.7; } to { transform: scale(1.35); opacity: 1; } }
+/* — sao băng, sao chổi, siêu tân tinh — */
+.nfs-shoot { position: absolute; left: var(--x); top: var(--y); width: var(--len); height: 2px; border-radius: 2px; opacity: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92)); animation: nfsShoot var(--d) ease-in var(--dl) infinite; will-change: transform, opacity; }
+.nfs-shoot::after { content: ''; position: absolute; right: -2px; top: -2px; width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px 3px rgba(150, 200, 255, 0.9); }
+@keyframes nfsShoot { 0%, 68% { opacity: 0; transform: rotate(var(--a)) translateX(0); } 72% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateX(60vmax); } }
+.nfs-comet { position: absolute; left: -12%; top: 14%; width: 280px; height: 5px; border-radius: 5px; opacity: 0; background: linear-gradient(90deg, transparent, rgba(120, 200, 255, 0.55) 60%, #fff); animation: nfsComet 26s linear infinite; will-change: transform, opacity; }
+.nfs-comet::after { content: ''; position: absolute; right: -4px; top: -6px; width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle, #fff 0 35%, rgba(150, 210, 255, 0.85) 60%, transparent 75%); box-shadow: 0 0 22px 8px rgba(120, 190, 255, 0.55); }
+@keyframes nfsComet { 0%, 6% { opacity: 0; transform: rotate(18deg) translateX(0); } 10% { opacity: 1; } 40% { opacity: 1; } 46%, 100% { opacity: 0; transform: rotate(18deg) translateX(135vw); } }
+.nfs-flare {
+  position: absolute; left: var(--x); top: var(--y); width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); opacity: 0; will-change: transform, opacity;
+  background: linear-gradient(90deg, transparent, #fff, transparent) center / 100% 2px no-repeat, linear-gradient(0deg, transparent, #fff, transparent) center / 2px 100% no-repeat, radial-gradient(circle, #fff 0 6%, rgba(130, 190, 255, 0.75) 18%, transparent 52%);
+  animation: nfsFlare var(--d) ease-in-out var(--dl) infinite;
+}
+@keyframes nfsFlare { 0%, 55%, 100% { opacity: 0; transform: scale(0.2) rotate(0); } 70% { opacity: 1; transform: scale(1) rotate(30deg); } 85% { opacity: 0.4; transform: scale(1.25) rotate(45deg); } }
+/* — thẻ: kính vũ trụ trong suốt, 4 góc có sao — */
+html[data-nf-realm="transcendent"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass) {
+  background-color: color-mix(in srgb, #0b1030 66%, transparent);
+  background-image:
+    radial-gradient(circle at 11px 11px, #fff 0 1.4px, transparent 2.6px), radial-gradient(circle at calc(100% - 11px) 11px, #fff 0 1.4px, transparent 2.6px),
+    radial-gradient(circle at 11px calc(100% - 11px), #fff 0 1.4px, transparent 2.6px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), #fff 0 1.4px, transparent 2.6px);
+  border: 1px solid rgba(170, 195, 255, 0.30);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 34px -12px rgba(120, 100, 255, 0.55), 0 18px 40px -18px #000;
+}
+html[data-nf-realm="transcendent"] .card--glass { background: linear-gradient(color-mix(in srgb, #0b1030 78%, transparent), color-mix(in srgb, #0b1030 78%, transparent)) padding-box, var(--grad-primary-vivid) border-box; box-shadow: 0 0 44px -10px rgba(148, 101, 255, 0.65), 0 22px 50px -22px #000; }
+@media (hover: hover) { html[data-nf-realm="transcendent"] :is(.card, .bento-card, .metric-card, .quick-card, .history-date-card):not(.card--glass):hover { border-color: rgba(200, 170, 255, 0.6); box-shadow: 0 0 46px -8px rgba(160, 120, 255, 0.75), 0 18px 40px -18px #000; } }
+/* — chữ, nút, tiến độ: dải cầu vồng chảy liên tục — */
+html[data-nf-realm="transcendent"] .page-title {
+  background: linear-gradient(100deg, #fff 0, #9fd8ff 12%, #b78cff 25%, #ff8fd0 37%, #ffe08a 50%, #fff 50%, #9fd8ff 62%, #b78cff 75%, #ff8fd0 87%, #ffe08a 100%) 0 0 / 800px 100% repeat-x;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #fff;
+  animation: nfsFlow 12s linear infinite; filter: drop-shadow(0 0 14px rgba(160, 130, 255, 0.45));
+}
+html[data-nf-realm="transcendent"] :is(.btn--primary, .search-bar__btn), html[data-nf-realm="transcendent"] .progress-bar__fill { background-size: 400px 100%; background-repeat: repeat-x; animation: nfsFlow 7s linear infinite; }
+html[data-nf-realm="transcendent"] :is(.btn--primary, .search-bar__btn) { background-image: linear-gradient(100deg, #22d3ee, #8f7bff 25%, #ff7ac8 50%, #ffc766 75%, #22d3ee 100%); }
+html[data-nf-realm="transcendent"] .progress-bar__fill { background-image: linear-gradient(100deg, #22d3ee, #8f7bff 25%, #ff7ac8 50%, #ffc766 75%, #22d3ee 100%); }
+html[data-nf-realm="transcendent"] :is(.btn--primary, .search-bar__btn)::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.7) 48%, transparent 58%); transform: translateX(-130%); animation: nfsSweep 3s ease-in-out infinite; }
+html[data-nf-realm="transcendent"] .progress-bar__fill::after { content: ''; position: absolute; top: -50%; bottom: -50%; right: -6px; width: 24px; background: radial-gradient(circle, #fff, rgba(190, 220, 255, 0.7) 40%, transparent 70%); animation: nfsPulse 1.2s ease-in-out infinite; }
+/* — nav đang chọn (máy tính): cầu vồng chảy — */
+@media (min-width: 1024px) { html[data-nf-realm="transcendent"] .nav-btn.active { background-image: linear-gradient(100deg, #22d3ee, #8f7bff 25%, #ff7ac8 50%, #ffc766 75%, #22d3ee 100%); background-size: 400px 100%; background-repeat: repeat-x; animation: nfsFlow 7s linear infinite; } }
+/* — huy hiệu: vòng thiên hà quay + vệ tinh; viền cầu vồng xoay — */
+html[data-nf-realm="transcendent"] .level-badge { background: linear-gradient(var(--panel), var(--panel)) padding-box, conic-gradient(from var(--nf-ang), #22d3ee, #a05cff, #ff6bb5, #ffc766, #22d3ee) border-box; animation: nfSpinAng 4s linear infinite; }
+html[data-nf-realm="transcendent"] .level-badge__icon::before { content: ''; position: absolute; inset: -7px; z-index: -1; border-radius: 50%; background: conic-gradient(#22d3ee, #a05cff, #ff6bb5, #ffc766, #22d3ee); -webkit-mask: radial-gradient(circle, transparent 0 62%, #000 64%); mask: radial-gradient(circle, transparent 0 62%, #000 64%); animation: nfsSpin 5s linear infinite; }
+html[data-nf-realm="transcendent"] .level-badge__icon::after { content: ''; position: absolute; inset: -7px; z-index: -1; border-radius: 50%; background: radial-gradient(circle at 50% 0, #fff 0 3.5px, rgba(190, 220, 255, 0.6) 5px, transparent 7px); animation: nfsSpin 3s linear infinite reverse; }
+.nf-burst[data-realm="transcendent"] i { filter: drop-shadow(0 0 6px var(--c)); }
+.nf-burst[data-realm="transcendent"] .nf-shock { border-color: #a5d8ff; box-shadow: 0 0 18px 4px rgba(150, 190, 255, 0.7), inset 0 0 12px rgba(200, 160, 255, 0.6); }
+.nf-look-flash { transition: none; }
+html[data-nf-realm="transcendent"] .nf-look-flash { background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.9), rgba(160, 120, 255, 0.55) 25%, rgba(34, 211, 238, 0.25) 45%, transparent 68%); }
+
+/* ==========================================================================
+   REDUCE MOTION — cảnh nền vẫn hiện (tĩnh), mọi chuyển động tắt, không có hạt/sao băng
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  #nf-sparkles { display: none !important; }
+  #nf-scene *, #nf-scene *::before, #nf-scene *::after { animation: none !important; }
+  .nfs-bubble { bottom: var(--y); }
+  .nfs-cloud { left: var(--x); }
+  .nfs-scan, .nfs-shoot, .nfs-comet, .nfs-flare { display: none !important; }
+  .nfs-cline { stroke-dashoffset: 0; opacity: 0.7; }
+  .nfs-flame { opacity: 0.85; }
+  html[data-nf-realm] :is(.btn--primary, .search-bar__btn, .progress-bar__fill, .page-title, .level-badge, .nav-btn.active),
+  html[data-nf-realm] :is(.btn--primary, .search-bar__btn, .progress-bar__fill, .nav-btn.active, .level-badge__icon)::before,
+  html[data-nf-realm] :is(.btn--primary, .search-bar__btn, .progress-bar__fill, .nav-btn.active, .level-badge__icon)::after { animation: none !important; }
+  html[data-nf-realm] :is(.btn--primary, .search-bar__btn)::after, html[data-nf-realm] .progress-bar__fill::after { opacity: 0; }
+}
+
+/* Điện thoại: chòm sao & sao băng mờ hơn để không làm khó đọc chữ phía trước */
+@media (max-width: 640px) {
+  .nfs-cline { stroke: rgba(196, 220, 255, 0.42); stroke-width: 1; }
+  .nfs-cstar-glow { fill: rgba(160, 200, 255, 0.18); }
+}
